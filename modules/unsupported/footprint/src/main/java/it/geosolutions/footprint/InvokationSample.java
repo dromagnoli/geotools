@@ -12,11 +12,12 @@ public class InvokationSample {
     public static void main(String[] args) {
         FootprintProcessingInputBean inputBean = new FootprintProcessingInputBean();
         inputBean.setInputFile(new File(
-                "C:\\data\\eumetsat\\IR108\\WMS-MSG-IR108-8bit_1412071200.tiff"));
+                "C:\\data\\eumetsat\\16122014\\WMS_MSG-RGB-natural_RGB-3-2-1_1412121200.tiff"));
         Map<String, Object> parameters = new HashMap<String, Object>();
         // parameters.put(FootprintParameter.Key.THRESHOLD_AREA, 100);
         // parameters.put(FootprintParameter.Key.FORCE_VALID, false);
         parameters.put(FootprintParameter.Key.COMPUTE_SIMPLIFIED_FOOTPRINT, true);
+        parameters.put(FootprintParameter.Key.SIMPLIFIER_FACTOR, 10);
         inputBean.setFootprintParameters(parameters);
 
         FootprintProcessingOutputBean outputBean = FootprintExtractionTool

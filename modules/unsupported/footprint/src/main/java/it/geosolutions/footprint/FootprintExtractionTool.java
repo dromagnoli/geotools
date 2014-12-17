@@ -156,7 +156,7 @@ public class FootprintExtractionTool {
                     (List<Range<Integer>>) params.get(FootprintParameter.Key.EXCLUSION_RANGES),
                     (Double) params.get(FootprintParameter.Key.THRESHOLD_AREA),
                     (Boolean) params.get(FootprintParameter.Key.COMPUTE_SIMPLIFIED_FOOTPRINT),
-                    (Double) params.get(FootprintParameter.Key.SIMPLIFIER_FACTOR),
+                    (Double) ((Number)params.get(FootprintParameter.Key.SIMPLIFIER_FACTOR)).doubleValue(),
                     (Boolean) params.get(FootprintParameter.Key.REMOVE_COLLINEAR),
                     (Boolean) params.get(FootprintParameter.Key.FORCE_VALID),
                     (ImageLoadingType) params.get(FootprintParameter.Key.LOADING_TYPE), null);

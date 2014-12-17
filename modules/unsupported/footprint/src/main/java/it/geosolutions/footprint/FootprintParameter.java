@@ -172,7 +172,7 @@ public class FootprintParameter {
     private static void doubleValueCheck(Map<String, Object> updatedParams, String key,
             Set<String> needsDefaultsSet) {
         Object param = updatedParams.get(key);
-        if (param == null || !(param instanceof Double)) {
+        if (param == null || !(param instanceof Double || param instanceof Integer)) {
             needsDefaultsSet.add(key);
         }
 
