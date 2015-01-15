@@ -115,6 +115,8 @@ import org.opengis.filter.spatial.BBOX;
 
 import com.vividsolutions.jts.geom.Envelope;
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryCollection;
+import com.vividsolutions.jts.precision.EnhancedPrecisionOp;
 
 /**
  * Sparse utilities for the various mosaic classes. I use them to extract
@@ -2017,5 +2019,40 @@ public class Utils {
                             + granuleUrl.toString());
         }
         return streamSPI;
+    }
+
+    public static boolean polygonOverlap(Geometry geometry, Geometry mask) {
+        // this seems to cause issues to JTS, reduce to
+        // single geometry when possible (http://jira.codehaus.org/browse/GEOS-6570)
+        if (geometry instanceof GeometryCollection && geometry.getNumGeometries() == 1) {
+            geometry = geometry.getGeometryN(0);
+        }
+        Geometry intersection;
+        try {
+            intersection = geometry.intersection(mask);
+        } catch(Exception e1) {
+            try {
+                intersection = EnhancedPrecisionOp.intersection(geometry, mask);
+            } catch(Exception e2) {
+                intersection = geometry;
+            }
+        }
+        
+        // workaround for a JTS bug, sometimes it returns empty results
+        // even if the two geometries are indeed intersecting
+        if (intersection.isEmpty() && geometry.intersects(mask)) {
+            try {
+                intersection = EnhancedPrecisionOp.intersection(geometry, mask);
+            } catch (Exception e2) {
+                intersection = geometry;
+            }
+        }
+
+        // handle in special way empty intersections
+        if (intersection.isEmpty()) {
+            return false;
+        } else {
+            return intersection != null && intersection.getDimension() == 2;
+        }
     }
 }

@@ -41,6 +41,8 @@ import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.geometry.BoundingBox;
 
 import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryCollection;
+import com.vividsolutions.jts.precision.EnhancedPrecisionOp;
 
 /**
  * This class simply builds an SRTREE spatial index in memory for fast indexed
@@ -188,7 +190,7 @@ class CachingDataStoreGranuleCatalog extends GranuleCatalog {
                         if(granule != null) {
                             // check ROI inclusion
                             final Geometry footprint = granule.getFootprint();
-                            if(intersectionGeometry==null||footprint==null||polygonOverlap(footprint, intersectionGeometry)){
+                            if(intersectionGeometry==null||footprint==null||Utils.polygonOverlap(footprint, intersectionGeometry)){
                                 visitor.visit(granule, null);
                             }else{
                                 if(LOGGER.isLoggable(Level.FINE)){
@@ -207,12 +209,6 @@ class CachingDataStoreGranuleCatalog extends GranuleCatalog {
                             }
                         }
                 }
-            }
-
-            private boolean polygonOverlap(Geometry g1, Geometry g2) {
-                // TODO: try to use relate instead
-                Geometry intersection = g1.intersection(g2);
-                return intersection != null && intersection.getDimension() == 2;
             }
         }, listener);
         

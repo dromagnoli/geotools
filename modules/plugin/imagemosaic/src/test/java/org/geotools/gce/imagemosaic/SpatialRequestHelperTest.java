@@ -34,6 +34,10 @@ import org.opengis.geometry.BoundingBox;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform2D;
+
+import com.vividsolutions.jts.geom.Geometry;
+import com.vividsolutions.jts.geom.GeometryFactory;
+import com.vividsolutions.jts.io.WKTReader;
 /**
  * 
  * @author Simone Giannecchini, GeoSolutions
@@ -796,4 +800,15 @@ public class SpatialRequestHelperTest extends Assert {
 	    assertEquals(computedResolution[0],computedResolution2[0],1E-6);
 	    assertEquals(computedResolution[1],computedResolution2[1],1E-6);
 	}
+	
+    @Test
+    public void testGeometriesOverlap() throws Exception {
+        GeometryFactory geometryFactory = new GeometryFactory();
+        WKTReader reader = new WKTReader(geometryFactory);
+        Geometry geom1 = (Geometry) reader.read("POLYGON ((10 10, 10 30, 50 10, 50 30, 10 10))");
+        Geometry geom2 = (Geometry) reader.read("POLYGON ((15 15, 15 25, 25 25, 25 15, 15 15))");
+        boolean overlaps = Utils.polygonOverlap(geom1, geom2);
+        
+    }
+
 }
