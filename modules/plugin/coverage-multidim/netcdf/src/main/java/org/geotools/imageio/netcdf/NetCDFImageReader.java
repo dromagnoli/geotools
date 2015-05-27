@@ -76,6 +76,7 @@ import org.opengis.coverage.SampleDimension;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.Name;
+import org.opengis.filter.Filter;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
 import ucar.ma2.Array;
@@ -926,9 +927,14 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
     @Override
     public void purge() {
-        getCatalog().dispose();
+        CoverageSlicesCatalog catalog = getCatalog();
+        try {
+            Filter filter = null;
+            catalog.purge(filter);
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+        catalog.dispose();
         ancillaryFileManager.purge();
     }
-  
-
 }

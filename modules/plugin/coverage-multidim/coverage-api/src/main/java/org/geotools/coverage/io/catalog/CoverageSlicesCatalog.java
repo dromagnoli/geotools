@@ -2,7 +2,7 @@
  *    GeoTools - The Open Source Java GIS Toolkit
  *    http://geotools.org
  *
- *    (C) 2007-2008, Open Source Geospatial Foundation (OSGeo)
+ *    (C) 2007-2015, Open Source Geospatial Foundation (OSGeo)
  *
  *    This library is free software; you can redistribute it and/or
  *    modify it under the terms of the GNU Lesser General Public
@@ -35,7 +35,9 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import org.geotools.data.DataStore;
+import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.DataUtilities;
+import org.geotools.data.DefaultTransaction;
 import org.geotools.data.Query;
 import org.geotools.data.QueryCapabilities;
 import org.geotools.data.Transaction;
@@ -62,13 +64,12 @@ import org.opengis.filter.Filter;
  * TODO: we may consider converting {@link CoverageSlice}s to {@link SimpleFeature}s
  */
 public class CoverageSlicesCatalog {
-    
 
     /** Logger. */
     final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(CoverageSlicesCatalog.class);
 
     final static H2DataStoreFactory INTERNAL_STORE_SPI = new H2DataStoreFactory();
-    
+
     static final String SCAN_FOR_TYPENAMES = "ScanTypeNames";
 
     /** The slices index store */
@@ -86,7 +87,7 @@ public class CoverageSlicesCatalog {
     private final SoftValueHashMap<Integer, CoverageSlice> coverageSliceDescriptorsCache = new SoftValueHashMap<Integer, CoverageSlice>(0);
 
     public CoverageSlicesCatalog(final String database, final File parentLocation) {
-        this(createParams(database,parentLocation));
+        this(INTERNAL_STORE_SPI, createParams(database,parentLocation));
     }
 
     /**
@@ -114,32 +115,93 @@ public class CoverageSlicesCatalog {
         return params;
     }
 
-    private CoverageSlicesCatalog(final Map<String, Serializable> params) {
+//    private CoverageSlicesCatalog(final Map<String, Serializable> params) {
+//        Utilities.ensureNonNull("params", params);
+//        try {
+//
+//            // creating a store, this might imply creating it for an existing underlying store or
+//            // creating a brand new one
+//            slicesIndexStore = INTERNAL_STORE_SPI.createDataStore(params);
+//
+//            // if this is not a new store let's extract basic properties from it
+//            String typeName = null;
+//            boolean scanForTypeNames = false;
+//            
+//            // Handle multiple typeNames
+//            if(params.containsKey("TypeName")){
+//                typeName=(String) params.get("TypeName");
+//            }  
+//            if (params.containsKey(SCAN_FOR_TYPENAMES)) {
+//                scanForTypeNames = (Boolean) params.get(SCAN_FOR_TYPENAMES);
+//            }
+//            
+//            if (scanForTypeNames) {
+//                String[] typeNames = slicesIndexStore.getTypeNames();
+//                if (typeNames != null) {
+//                    for (String tn : typeNames) {
+//                        this.typeNames.add(tn);
+//                    }
+//                }
+//            } else if (typeName != null) {
+//                addTypeName(typeName, false);
+//            }
+//
+//            if (this.typeNames.size() > 0) {
+//                extractBasicProperties(typeNames.iterator().next());
+//            } else {
+//                extractBasicProperties(typeName);
+//            }
+//        } catch (Throwable e) {
+//            try {
+//                if (slicesIndexStore != null){
+//                    slicesIndexStore.dispose();
+//                }
+//            } catch (Throwable e1) {
+//                if (LOGGER.isLoggable(Level.FINE)){
+//                    LOGGER.log(Level.FINE, e1.getLocalizedMessage(), e1);
+//                }
+//            } finally {
+//                slicesIndexStore = null;
+//            }
+//
+//            throw new IllegalArgumentException(e);
+//        }
+//    }
+
+    private CoverageSlicesCatalog(DataStoreFactorySpi spi, final Map<String, Serializable> params) {
         Utilities.ensureNonNull("params", params);
         try {
 
             // creating a store, this might imply creating it for an existing underlying store or
             // creating a brand new one
-            slicesIndexStore = INTERNAL_STORE_SPI.createDataStore(params);
+            slicesIndexStore = spi.createDataStore(params);
 
             // if this is not a new store let's extract basic properties from it
             String typeName = null;
+            String[] typeNamesValues = null;
             boolean scanForTypeNames = false;
-            
+
             // Handle multiple typeNames
-            if(params.containsKey("TypeName")){
-                typeName=(String) params.get("TypeName");
-            }  
+            if (params.containsKey("TypeName")) {
+                typeName = (String) params.get("TypeName");
+            }else if (params.containsKey("TypeNames")) {
+                String typeNamesParam = (String) params.get("TypeNames");
+                if (typeNamesParam != null) {
+                    typeNamesValues = typeNamesParam.split(",");
+                }
+            }
+
             if (params.containsKey(SCAN_FOR_TYPENAMES)) {
                 scanForTypeNames = (Boolean) params.get(SCAN_FOR_TYPENAMES);
             }
-            
+
             if (scanForTypeNames) {
-                String[] typeNames = slicesIndexStore.getTypeNames();
-                if (typeNames != null) {
-                    for (String tn : typeNames) {
-                        this.typeNames.add(tn);
-                    }
+                typeNamesValues = slicesIndexStore.getTypeNames();
+            } 
+
+            if (typeNamesValues != null) {
+                for (String tn : typeNames) {
+                    this.typeNames.add(tn);
                 }
             } else if (typeName != null) {
                 addTypeName(typeName, false);
@@ -167,6 +229,7 @@ public class CoverageSlicesCatalog {
         }
     }
 
+    
     /**
      * If the underlying store has been disposed we throw an {@link IllegalStateException}.
      * <p>
@@ -475,7 +538,7 @@ public class CoverageSlicesCatalog {
         }
     }
 
-    public void removeGranules(String typeName,Filter filter, Transaction transaction) throws IOException {
+    public void removeGranules(String typeName, Filter filter, Transaction transaction) throws IOException {
         Utilities.ensureNonNull("typeName", typeName);
         Utilities.ensureNonNull("filter", filter);
         Utilities.ensureNonNull("transaction", transaction);
@@ -491,6 +554,33 @@ public class CoverageSlicesCatalog {
 
         } finally {
             lock.unlock();
+        }
+    }
+
+    public void purge(Filter filter) throws IOException {
+        DefaultTransaction transaction = null;
+        try {
+            transaction = new DefaultTransaction("CleanupTransaction" + System.nanoTime());
+            for (String typeName: typeNames) {
+                removeGranules(typeName, filter, transaction);    
+            }
+            transaction.commit();
+        } catch (Throwable e) {
+            if (LOGGER.isLoggable(Level.FINE)) {
+                LOGGER.fine("Rollback");
+            }
+            if (transaction != null) {
+                transaction.rollback();
+            }
+            throw new IOException(e);
+        } finally {
+            try {
+                if (transaction != null) {
+                    transaction.close();
+                }
+            } catch (Throwable t) {
+
+            }
         }
     }
 }

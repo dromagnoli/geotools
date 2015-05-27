@@ -31,6 +31,7 @@ import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.io.CoverageSourceDescriptor;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
+import org.geotools.data.DataStore;
 import org.geotools.data.Query;
 import org.opengis.feature.type.Name;
 
@@ -48,6 +49,12 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
     protected int numImages = -1;
 
     private String auxiliaryFilesPath = null;
+
+//    /**
+//     * By Default, GeoSpatialImageReader use an embedded H2 dataStore.
+//     * Starting from GT 14.x we allow providing an external dataStore.
+//     */
+//    private DataStore externalStore;
 
     protected GeoSpatialImageReader(ImageReaderSpi originatingProvider) {
         super(originatingProvider);
@@ -163,7 +170,21 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
     public CoverageSlicesCatalog getCatalog() {
         return slicesCatalog;
     }
-    
+
+//    /** 
+//     * By default, GeoSpatial reader uses an embedded H2 Datastore
+//     * Starting from GT 14.x we allow providing an external dataStore.
+//     * This setter method also overrides any datastore.properties
+//     * configuration. 
+//     */
+//    public void setExternalStore (DataStore externalStore) {
+//        this.externalStore = externalStore;
+//    }
+//
+//    public DataStore getExternalStore() {
+//        return externalStore;
+//    }
+
     /**
      * Init the slicesCatalog based on the provided parameters
      * 
