@@ -51,6 +51,7 @@ import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.visitor.FeatureCalc;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.imageio.GeoSpatialImageReader.DataStoreProperties;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
 import org.opengis.feature.simple.SimpleFeature;
@@ -67,8 +68,6 @@ public class CoverageSlicesCatalog {
 
     /** Logger. */
     final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(CoverageSlicesCatalog.class);
-
-    final static H2DataStoreFactory INTERNAL_STORE_SPI = new H2DataStoreFactory();
 
     static final String SCAN_FOR_TYPENAMES = "ScanTypeNames";
 
@@ -87,33 +86,33 @@ public class CoverageSlicesCatalog {
     private final SoftValueHashMap<Integer, CoverageSlice> coverageSliceDescriptorsCache = new SoftValueHashMap<Integer, CoverageSlice>(0);
 
     public CoverageSlicesCatalog(final String database, final File parentLocation) {
-        this(INTERNAL_STORE_SPI, createParams(database,parentLocation));
+        this(INTERNAL_STORE_SPI, createParams(database, parentLocation));
     }
 
-    /**
-     * @param database
-     * @param parentLocation2
-     * @return
-     */
-    private static Map<String, Serializable> createParams(String database, File parentLocation) {
-        Utilities.ensureNonNull("database", database);
-        Utilities.ensureNonNull("parentLocation", parentLocation);
-        final Map<String, Serializable> params = new HashMap<String, Serializable>();
-        params.put("ScanTypeNames", Boolean.valueOf(true));
-        final String url = DataUtilities.fileToURL(parentLocation).toExternalForm();
-        String updatedDB;
-        try {
-            updatedDB = "file:" + (new File(DataUtilities.urlToFile(new URL(url)), database)).getPath();
-            params.put("ParentLocation", url);
-            params.put("database", updatedDB);
-            params.put("dbtype", "h2");
-            params.put("user", "geotools");
-            params.put("passwd", "geotools");
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(e);
-        }
-        return params;
-    }
+//    /**
+//     * @param database
+//     * @param parentLocation2
+//     * @return
+//     */
+//    private static Map<String, Serializable> createParams(String database, File parentLocation) {
+//        Utilities.ensureNonNull("database", database);
+//        Utilities.ensureNonNull("parentLocation", parentLocation);
+//        final Map<String, Serializable> params = new HashMap<String, Serializable>();
+//        params.put("ScanTypeNames", Boolean.valueOf(true));
+//        final String url = DataUtilities.fileToURL(parentLocation).toExternalForm();
+//        String updatedDB;
+//        try {
+//            updatedDB = "file:" + (new File(DataUtilities.urlToFile(new URL(url)), database)).getPath();
+//            params.put("ParentLocation", url);
+//            params.put("database", updatedDB);
+//            params.put("dbtype", "h2");
+//            params.put("user", "geotools");
+//            params.put("passwd", "geotools");
+//        } catch (MalformedURLException e) {
+//            throw new IllegalArgumentException(e);
+//        }
+//        return params;
+//    }
 
 //    private CoverageSlicesCatalog(final Map<String, Serializable> params) {
 //        Utilities.ensureNonNull("params", params);
@@ -168,7 +167,7 @@ public class CoverageSlicesCatalog {
 //        }
 //    }
 
-    private CoverageSlicesCatalog(DataStoreFactorySpi spi, final Map<String, Serializable> params) {
+    public CoverageSlicesCatalog(DataStoreFactorySpi spi, final Map<String, Serializable> params) {
         Utilities.ensureNonNull("params", params);
         try {
 
@@ -184,7 +183,7 @@ public class CoverageSlicesCatalog {
             // Handle multiple typeNames
             if (params.containsKey("TypeName")) {
                 typeName = (String) params.get("TypeName");
-            }else if (params.containsKey("TypeNames")) {
+            } else if (params.containsKey("TypeNames")) {
                 String typeNamesParam = (String) params.get("TypeNames");
                 if (typeNamesParam != null) {
                     typeNamesValues = typeNamesParam.split(",");
@@ -195,7 +194,7 @@ public class CoverageSlicesCatalog {
                 scanForTypeNames = (Boolean) params.get(SCAN_FOR_TYPENAMES);
             }
 
-            if (scanForTypeNames) {
+            if (typeNamesValues == null && scanForTypeNames) {
                 typeNamesValues = slicesIndexStore.getTypeNames();
             } 
 
@@ -229,7 +228,6 @@ public class CoverageSlicesCatalog {
         }
     }
 
-    
     /**
      * If the underlying store has been disposed we throw an {@link IllegalStateException}.
      * <p>

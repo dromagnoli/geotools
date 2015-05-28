@@ -30,16 +30,21 @@ import java.awt.image.SampleModel;
 import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -56,11 +61,15 @@ import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.range.FieldType;
 import org.geotools.coverage.io.range.RangeType;
+import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.DefaultTransaction;
+import org.geotools.data.DataAccessFactory.Param;
 import org.geotools.data.collection.ListFeatureCollection;
+import org.geotools.data.h2.H2DataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.SchemaException;
+import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages.Coverage;
 import org.geotools.gce.imagemosaic.catalog.index.SchemaType;
 import org.geotools.imageio.GeoSpatialImageReader;
@@ -68,7 +77,9 @@ import org.geotools.imageio.netcdf.cv.CoordinateVariable;
 import org.geotools.imageio.netcdf.utilities.NetCDFCRSUtilities;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities.CheckType;
+import org.geotools.referencing.factory.gridshift.DataUtilities;
 import org.geotools.resources.coverage.CoverageUtilities;
+import org.geotools.util.Converters;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
@@ -112,6 +123,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     private static final int INTERNAL_INDEX_CREATION_PAGE_SIZE = 1000;
 
     private final static Logger LOGGER = Logging.getLogger(NetCDFImageReader.class.toString());
+
+    private final static H2DataStoreFactory INTERNAL_STORE_SPI = new H2DataStoreFactory();
 
     /** 
      * An instance of {@link AncillaryFileManager} which takes care of handling all the auxiliary index
@@ -265,8 +278,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     }
 
     /**
-     * Index Initialization. Scan the coverageDescriptorsCache and store indexing information.
-     * @param coverageDescriptorsCache
+     * Index Initialization. store indexing information.
+     * 
      * @return
      * @throws InvalidRangeException
      * @throws IOException
@@ -277,9 +290,11 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         try {
 
             // init slice catalog
-            final File sliceIndexFile = ancillaryFileManager.getSlicesIndexFile(); 
-            initCatalog(sliceIndexFile.getParentFile(),
-                FilenameUtils.removeExtension(FilenameUtils.getName(sliceIndexFile.getCanonicalPath())).replace(".", ""));
+//            final File sliceIndexFile = ancillaryFileManager.getSlicesIndexFile();
+            DataStoreProperties datastoreConnection = getDatastoreProperties();
+            initCatalog(datastoreConnection);
+//            initCatalog(sliceIndexFile.getParentFile(),
+//                FilenameUtils.removeExtension(FilenameUtils.getName(sliceIndexFile.getCanonicalPath())).replace(".", ""));
             final List<Variable> variables = dataset.getVariables();
             if (variables != null) {
 
@@ -452,8 +467,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         ancillaryFileManager.initSliceManager();
                         numImages = ancillaryFileManager.slicesIndexManager.getNumberOfRecords();
                         if (!ignoreMetadata) {
-                            initCatalog(slicesIndexFile.getParentFile(),
-                            FilenameUtils.removeExtension(FilenameUtils.getName(slicesIndexFile.getCanonicalPath())).replace(".", ""));
+                            DataStoreProperties datastoreConnection = getDatastoreProperties();
+                            initCatalog(datastoreConnection);
                             coverages.addAll(ancillaryFileManager.getCoveragesNames());
                         }
                     }
@@ -485,7 +500,64 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         setNumImages(numImages);
     }
 
+    private DataStoreProperties getDatastoreProperties() throws IOException {
+        DataStoreProperties datastoreConnection = new DataStoreProperties();
+        File datastoreIndexerFile = ancillaryFileManager.getDatastoreIndexFile();
+        if (datastoreIndexerFile != null) {
+            URL datastoreURL = DataUtilities.fileToURL(datastoreIndexerFile);
+            Properties properties = Utils.loadPropertiesFromURL(datastoreURL);
+            if (properties != null) {
+                final String SPIClass = properties.getProperty("SPI");
+                try {
+                    // create a datastore as instructed
+                    final DataStoreFactorySpi spi = (DataStoreFactorySpi) Class.forName(SPIClass)
+                            .newInstance();
+                    Map<String, Serializable> datastoreParams = Utils.filterDataStoreParams(
+                            properties, spi);
+                    datastoreConnection.setDatastoreSpi(spi);
+                    datastoreConnection.setParams(datastoreParams);
+                    
+                    // TODO: Set typenames
+                } catch (Exception e) {
+                    final IOException ioe = new IOException();
+                    throw (IOException) ioe.initCause(e);
+                }
+            }
+        } else {
+            final File slicesIndexFile = ancillaryFileManager.getSlicesIndexFile();
+            File parentFile = slicesIndexFile.getParentFile();
+            datastoreConnection.setDatastoreSpi(INTERNAL_STORE_SPI);
+            String database = FilenameUtils.removeExtension(FilenameUtils.getName(slicesIndexFile.getCanonicalPath())).replace(".", "");
+            datastoreConnection.setParams(createParams(database, parentFile));
+        }
+        return datastoreConnection;
+    }
 
+    /**
+     * @param database
+     * @param parentLocation2
+     * @return
+     */
+    private static Map<String, Serializable> createParams(String database, File parentLocation) {
+        Utilities.ensureNonNull("database", database);
+        Utilities.ensureNonNull("parentLocation", parentLocation);
+        final Map<String, Serializable> params = new HashMap<String, Serializable>();
+        params.put("ScanTypeNames", Boolean.valueOf(true));
+        final String url = DataUtilities.fileToURL(parentLocation).toExternalForm();
+        String updatedDB;
+        try {
+            updatedDB = "file:" + (new File(DataUtilities.urlToFile(new URL(url)), database)).getPath();
+            params.put("ParentLocation", url);
+            params.put("database", updatedDB);
+            params.put("dbtype", "h2");
+            params.put("user", "geotools");
+            params.put("passwd", "geotools");
+        } catch (MalformedURLException e) {
+            throw new IllegalArgumentException(e);
+        }
+        return params;
+    }
+    
 
     /**
      * Wraps a generic exception into a {@link IIOException}.

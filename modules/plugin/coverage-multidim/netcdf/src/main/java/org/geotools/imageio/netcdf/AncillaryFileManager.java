@@ -47,6 +47,7 @@ import org.geotools.gce.imagemosaic.catalog.index.Indexer.Collectors.Collector;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages.Coverage;
 import org.geotools.gce.imagemosaic.catalog.index.ObjectFactory;
+import org.geotools.gce.imagemosaic.catalog.index.ParametersType;
 import org.geotools.gce.imagemosaic.catalog.index.SchemaType;
 import org.geotools.gce.imagemosaic.catalog.index.SchemasType;
 import org.geotools.gce.imagemosaic.properties.DefaultPropertiesCollectorSPI;
@@ -95,6 +96,8 @@ public class AncillaryFileManager implements FileSetManager{
     private static final String INDEX_SUFFIX = ".xml";
 
     private static final String COVERAGE_NAME = "coverageName";
+
+    private static final String DEFAULT_DATASTORE_PROPERTIES = "mddatastore.properties";
     
     /**
      * The list of Slice2D indexes
@@ -129,6 +132,10 @@ public class AncillaryFileManager implements FileSetManager{
     /** File storing the slices index (index, Tsection, Zsection) */
     private File slicesIndexFile;
 
+    /** File storing the datastore properties */
+    private File datastoreIndexFile;
+
+    
     /** File storing the coverages indexer */
     private File indexerFile;
     
@@ -165,7 +172,10 @@ public class AncillaryFileManager implements FileSetManager{
         String baseName = cutExtension(extension) ? FilenameUtils.removeExtension(mainName) : mainName;
         String outputLocalFolder = "." + baseName + "_" + hashCode;
         destinationDir = new File(parentDirectory, outputLocalFolder);
-
+        datastoreIndexFile = new File(parentDirectory, DEFAULT_DATASTORE_PROPERTIES);
+        if (!datastoreIndexFile.exists()) {
+            datastoreIndexFile = null;
+        }
         // append base file folder tree to the optional external data dir
         if (baseDir != null) {
             destinationDir = new File(baseDir, outputLocalFolder);
@@ -364,6 +374,10 @@ public class AncillaryFileManager implements FileSetManager{
 
     public File getIndexerFile() {
         return indexerFile;
+    }
+    
+    public File getDatastoreIndexFile() {
+        return datastoreIndexFile;
     }
 
     public void addSlice(final Slice2DIndex variableIndex) {
@@ -671,5 +685,9 @@ public class AncillaryFileManager implements FileSetManager{
             } while (two_halfs++ < 1);
         }
         return buf.toString();
+    }
+
+    public ParametersType getParameters() {
+        return indexer.getParameters();
     }
 }

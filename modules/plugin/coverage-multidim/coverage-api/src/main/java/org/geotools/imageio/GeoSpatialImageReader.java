@@ -19,9 +19,12 @@ package org.geotools.imageio;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
+import java.util.Properties;
 
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
@@ -31,7 +34,7 @@ import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.io.CoverageSourceDescriptor;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
-import org.geotools.data.DataStore;
+import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.Query;
 import org.opengis.feature.type.Name;
 
@@ -42,6 +45,28 @@ import org.opengis.feature.type.Name;
  * @source $URL$
  */
 public abstract class GeoSpatialImageReader extends ImageReader implements FileSetManager{
+
+    public static class DataStoreProperties {
+        public DataStoreFactorySpi getDatastoreSpi() {
+            return datastoreSpi;
+        }
+
+        public void setDatastoreSpi(DataStoreFactorySpi datastoreSpi) {
+            this.datastoreSpi = datastoreSpi;
+        }
+
+        public Map<String, Serializable> getParams() {
+            return params;
+        }
+
+        public void setParams(Map<String, Serializable> params) {
+            this.params = params;
+        }
+
+        private DataStoreFactorySpi datastoreSpi;
+
+        private Map<String, Serializable> params;
+    }
 
     /** the coverage slices slicesCatalog currently stored as H2 DB */
     private CoverageSlicesCatalog slicesCatalog;
@@ -194,6 +219,11 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
      */
     protected void initCatalog(File parentLocation, String databaseName) throws IOException {
         slicesCatalog = new CoverageSlicesCatalog(databaseName, parentLocation);
+    }
+
+
+    protected void initCatalog(DataStoreProperties datastoreProperties) throws IOException {
+        slicesCatalog = new CoverageSlicesCatalog(datastoreProperties.getDatastoreSpi(), datastoreProperties.getParams());
     }
 
     @Override
