@@ -19,11 +19,8 @@ package org.geotools.coverage.io.catalog;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +38,6 @@ import org.geotools.data.DefaultTransaction;
 import org.geotools.data.Query;
 import org.geotools.data.QueryCapabilities;
 import org.geotools.data.Transaction;
-import org.geotools.data.h2.H2DataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.data.simple.SimpleFeatureSource;
@@ -51,13 +47,14 @@ import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.visitor.FeatureCalc;
 import org.geotools.geometry.jts.ReferencedEnvelope;
-import org.geotools.imageio.GeoSpatialImageReader.DataStoreProperties;
+import org.geotools.resources.coverage.FeatureUtilities;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.simple.SimpleFeatureType;
 import org.opengis.feature.type.FeatureType;
 import org.opengis.filter.Filter;
+import org.opengis.filter.FilterFactory;
 
 /**
  * This class simply builds an index for fast indexed queries.
@@ -65,6 +62,70 @@ import org.opengis.filter.Filter;
  * TODO: we may consider converting {@link CoverageSlice}s to {@link SimpleFeature}s
  */
 public class CoverageSlicesCatalog {
+
+    /**
+     * CoverageSlicesCatalog always used an hidden H2 DB to store granules
+     * index related to a specific file.
+     * 
+     * Using a PostGIS shared index, we need to add a LOCATION attribute
+     * to distinguish the different granules, as well as add a Filter
+     * setting the LOCATION value to each query from a reader 
+     * (1 reader <-> 1 file <-> 1 location)
+     *
+     */
+    public static class WrappedCoverageSlicesCatalog extends CoverageSlicesCatalog {
+
+        private final static FilterFactory FF = FeatureUtilities.DEFAULT_FILTER_FACTORY;
+
+        /** Internal query filter to be ANDED with the input query */
+        private Filter queryFilter;  
+
+        public WrappedCoverageSlicesCatalog(DataStoreConfiguration config, File file)
+                throws IOException {
+            super(config);
+            queryFilter = FF.equal(FF.property(CoverageSlice.Attributes.LOCATION),
+                    FF.literal(file.getCanonicalPath()), true);
+        }
+
+        @Override
+        public List<CoverageSlice> getGranules(Query q) throws IOException {
+            return super.getGranules(refineQuery(q));
+        }
+
+        @Override
+        public void computeAggregateFunction(Query query, FeatureCalc function) throws IOException {
+            super.computeAggregateFunction(refineQuery(query), function);
+        }
+
+        @Override
+        public void removeGranules(String typeName, Filter filter, Transaction transaction)
+                throws IOException {
+            super.removeGranules(typeName, refineFilter(filter), transaction);
+        }
+
+        /**
+         * Refine query to make sure to restrict the query to the single file
+         * associated.
+         * @param q
+         * @return
+         */
+        private Query refineQuery(Query q) {
+            Query query = new Query(q);
+            query.setFilter(refineFilter(q.getFilter()));
+            return query;
+        }
+
+        /**
+         * Refine filter to make sure to AND the filter with a filter
+         * selecting the proper file 
+
+         * @param filter
+         * @return
+         */
+        private Filter refineFilter(Filter filter) {
+            return filter != null ? FF.and(filter, queryFilter) : queryFilter;
+        }
+    }
 
     /** Logger. */
     final static Logger LOGGER = org.geotools.util.logging.Logging.getLogger(CoverageSlicesCatalog.class);
@@ -79,95 +140,17 @@ public class CoverageSlicesCatalog {
 
     private String geometryPropertyName;
 
-    private ReferencedEnvelope bounds;
-
     public final static String IMAGE_INDEX_ATTR = "imageindex";
 
     private final SoftValueHashMap<Integer, CoverageSlice> coverageSliceDescriptorsCache = new SoftValueHashMap<Integer, CoverageSlice>(0);
 
     public CoverageSlicesCatalog(final String database, final File parentLocation) {
-        this(INTERNAL_STORE_SPI, createParams(database, parentLocation));
+        this(new DataStoreConfiguration(DataStoreConfiguration.getDefaultParams(database, parentLocation)));
     }
 
-//    /**
-//     * @param database
-//     * @param parentLocation2
-//     * @return
-//     */
-//    private static Map<String, Serializable> createParams(String database, File parentLocation) {
-//        Utilities.ensureNonNull("database", database);
-//        Utilities.ensureNonNull("parentLocation", parentLocation);
-//        final Map<String, Serializable> params = new HashMap<String, Serializable>();
-//        params.put("ScanTypeNames", Boolean.valueOf(true));
-//        final String url = DataUtilities.fileToURL(parentLocation).toExternalForm();
-//        String updatedDB;
-//        try {
-//            updatedDB = "file:" + (new File(DataUtilities.urlToFile(new URL(url)), database)).getPath();
-//            params.put("ParentLocation", url);
-//            params.put("database", updatedDB);
-//            params.put("dbtype", "h2");
-//            params.put("user", "geotools");
-//            params.put("passwd", "geotools");
-//        } catch (MalformedURLException e) {
-//            throw new IllegalArgumentException(e);
-//        }
-//        return params;
-//    }
-
-//    private CoverageSlicesCatalog(final Map<String, Serializable> params) {
-//        Utilities.ensureNonNull("params", params);
-//        try {
-//
-//            // creating a store, this might imply creating it for an existing underlying store or
-//            // creating a brand new one
-//            slicesIndexStore = INTERNAL_STORE_SPI.createDataStore(params);
-//
-//            // if this is not a new store let's extract basic properties from it
-//            String typeName = null;
-//            boolean scanForTypeNames = false;
-//            
-//            // Handle multiple typeNames
-//            if(params.containsKey("TypeName")){
-//                typeName=(String) params.get("TypeName");
-//            }  
-//            if (params.containsKey(SCAN_FOR_TYPENAMES)) {
-//                scanForTypeNames = (Boolean) params.get(SCAN_FOR_TYPENAMES);
-//            }
-//            
-//            if (scanForTypeNames) {
-//                String[] typeNames = slicesIndexStore.getTypeNames();
-//                if (typeNames != null) {
-//                    for (String tn : typeNames) {
-//                        this.typeNames.add(tn);
-//                    }
-//                }
-//            } else if (typeName != null) {
-//                addTypeName(typeName, false);
-//            }
-//
-//            if (this.typeNames.size() > 0) {
-//                extractBasicProperties(typeNames.iterator().next());
-//            } else {
-//                extractBasicProperties(typeName);
-//            }
-//        } catch (Throwable e) {
-//            try {
-//                if (slicesIndexStore != null){
-//                    slicesIndexStore.dispose();
-//                }
-//            } catch (Throwable e1) {
-//                if (LOGGER.isLoggable(Level.FINE)){
-//                    LOGGER.log(Level.FINE, e1.getLocalizedMessage(), e1);
-//                }
-//            } finally {
-//                slicesIndexStore = null;
-//            }
-//
-//            throw new IllegalArgumentException(e);
-//        }
-//    }
-
-    public CoverageSlicesCatalog(DataStoreFactorySpi spi, final Map<String, Serializable> params) {
+    public CoverageSlicesCatalog(DataStoreConfiguration datastoreConfig) {
+        DataStoreFactorySpi spi = datastoreConfig.getDatastoreSpi();
+        final Map<String, Serializable> params = datastoreConfig.getParams();
         Utilities.ensureNonNull("params", params);
         try {
 
@@ -199,7 +182,7 @@ public class CoverageSlicesCatalog {
             } 
 
             if (typeNamesValues != null) {
-                for (String tn : typeNames) {
+                for (String tn : typeNamesValues) {
                     this.typeNames.add(tn);
                 }
             } else if (typeName != null) {
@@ -433,16 +416,14 @@ public class CoverageSlicesCatalog {
         try {
             lock.lock();
             checkStore();
-            if (bounds == null) {
-                bounds = this.slicesIndexStore.getFeatureSource(typeName).getBounds();
-            }
+            return this.slicesIndexStore.getFeatureSource(typeName).getBounds();
+            
         } catch (IOException e) {
             LOGGER.log(Level.FINER, e.getMessage(), e);
-            bounds = null;
+            return null;
         } finally {
             lock.unlock();
         }
-        return bounds;
     }
 
     public void createType(SimpleFeatureType featureType) throws IOException {
@@ -560,7 +541,7 @@ public class CoverageSlicesCatalog {
         try {
             transaction = new DefaultTransaction("CleanupTransaction" + System.nanoTime());
             for (String typeName: typeNames) {
-                removeGranules(typeName, filter, transaction);    
+                removeGranules(typeName, filter, transaction);
             }
             transaction.commit();
         } catch (Throwable e) {

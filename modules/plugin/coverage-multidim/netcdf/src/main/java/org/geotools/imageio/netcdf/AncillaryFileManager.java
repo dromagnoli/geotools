@@ -191,18 +191,43 @@ public class AncillaryFileManager implements FileSetManager{
 
         // Init auxiliary file names
         slicesIndexFile = new File(destinationDir, baseName + ".idx");
+        lookupIndexerFile(indexFilePath, baseName);
+
+        if (!createdDir) {
+            // Check for index to be reset only in case we didn't created a new directory.
+            checkReset(ncFile, slicesIndexFile, destinationDir);
+        }
+        fileSetManager.addFile(destinationDir.getAbsolutePath());
+
+        // init
+        initIndexer();
+    }
+
+    /**
+     * Use different approaches to look for the indexer file since it can be provided
+     * externally (as from the imageMosaic sharing the same indexer between multiple
+     * NetCDF files), it can be contained into a .DIR folder or it can be contained
+     * into a HASHNAME folder.
+     * 
+     * @param indexFilePath
+     * @param baseName
+     */
+    private void lookupIndexerFile(String indexFilePath, String baseName) {
+        // CASE 1: IndexFile externally provided
         if (indexFilePath != null) {
             indexerFile = new File(indexFilePath);
             if (!indexerFile.exists() || !indexerFile.canRead()) {
                 indexerFile = null;
             }
-        }else{
+        } else {
+            // CASE 2: side file (for retrocompatibility)
             // Compose the path to an optional XML auxiliary file in the same directory of the input file
             // (filename.xml)
             String optionalAuxiliaryPath = parentDirectory.getAbsolutePath() + File.separator + 
                     baseName + INDEX_SUFFIX;
             indexerFile = new File(optionalAuxiliaryPath);
             if (!indexerFile.exists() || !indexerFile.canRead()) {
+                // CASE 3: side file in hidden folder (for retrocompatibility)
                 // Compose the path to an optional XML auxiliary file inside a directory of with the same 
                 // name of the file but with a dot before (.filename/filename.xml) 
                 optionalAuxiliaryPath = parentDirectory.getAbsolutePath() + File.separator + "." + 
@@ -215,17 +240,10 @@ public class AncillaryFileManager implements FileSetManager{
         }
 
         if (indexerFile == null) {
+            // CASE 4: the recent approach using HASH of the file to prevent conflicts
+            // With files with same name
             indexerFile = new File(destinationDir, baseName + INDEX_SUFFIX);
         }
-        
-        if (!createdDir) {
-            // Check for index to be reset only in case we didn't created a new directory.
-            checkReset(ncFile, slicesIndexFile, destinationDir);
-        }
-        fileSetManager.addFile(destinationDir.getAbsolutePath());
-
-        // init
-        initIndexer();
     }
 
     private static boolean cutExtension(String extension) {
@@ -260,7 +278,6 @@ public class AncillaryFileManager implements FileSetManager{
         }
     }
 
-    
     /**
      * Write indexer to disk
      * @throws IOException

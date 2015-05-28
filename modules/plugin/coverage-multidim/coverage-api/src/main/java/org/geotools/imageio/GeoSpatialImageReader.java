@@ -19,12 +19,9 @@ package org.geotools.imageio;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.Properties;
 
 import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
@@ -34,7 +31,8 @@ import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.io.CoverageSourceDescriptor;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
-import org.geotools.data.DataStoreFactorySpi;
+import org.geotools.coverage.io.catalog.CoverageSlicesCatalog.WrappedCoverageSlicesCatalog;
+import org.geotools.coverage.io.catalog.DataStoreConfiguration;
 import org.geotools.data.Query;
 import org.opengis.feature.type.Name;
 
@@ -46,40 +44,17 @@ import org.opengis.feature.type.Name;
  */
 public abstract class GeoSpatialImageReader extends ImageReader implements FileSetManager{
 
-    public static class DataStoreProperties {
-        public DataStoreFactorySpi getDatastoreSpi() {
-            return datastoreSpi;
-        }
+    /** The source file */
+    protected File file;
 
-        public void setDatastoreSpi(DataStoreFactorySpi datastoreSpi) {
-            this.datastoreSpi = datastoreSpi;
-        }
+    
 
-        public Map<String, Serializable> getParams() {
-            return params;
-        }
-
-        public void setParams(Map<String, Serializable> params) {
-            this.params = params;
-        }
-
-        private DataStoreFactorySpi datastoreSpi;
-
-        private Map<String, Serializable> params;
-    }
-
-    /** the coverage slices slicesCatalog currently stored as H2 DB */
+    /** the coverage slices slicesCatalog */
     private CoverageSlicesCatalog slicesCatalog;
 
     protected int numImages = -1;
 
     private String auxiliaryFilesPath = null;
-
-//    /**
-//     * By Default, GeoSpatialImageReader use an embedded H2 dataStore.
-//     * Starting from GT 14.x we allow providing an external dataStore.
-//     */
-//    private DataStore externalStore;
 
     protected GeoSpatialImageReader(ImageReaderSpi originatingProvider) {
         super(originatingProvider);
@@ -152,7 +127,6 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
      */
     public abstract CoverageSourceDescriptor getCoverageDescriptor(Name name);
 
-    
     protected void setCatalog(CoverageSlicesCatalog catalog) {
         if(slicesCatalog!=null){
             slicesCatalog.dispose();
@@ -196,34 +170,29 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
         return slicesCatalog;
     }
 
-//    /** 
-//     * By default, GeoSpatial reader uses an embedded H2 Datastore
-//     * Starting from GT 14.x we allow providing an external dataStore.
-//     * This setter method also overrides any datastore.properties
-//     * configuration. 
-//     */
-//    public void setExternalStore (DataStore externalStore) {
-//        this.externalStore = externalStore;
-//    }
-//
-//    public DataStore getExternalStore() {
-//        return externalStore;
-//    }
-
     /**
      * Init the slicesCatalog based on the provided parameters
      * 
      * @param parentLocation 
      * @param databaseName 
      * @throws IOException
+     * 
+     * @deprecated: use the {@link #initCatalog(DataStoreConfiguration)} instead 
      */
     protected void initCatalog(File parentLocation, String databaseName) throws IOException {
         slicesCatalog = new CoverageSlicesCatalog(databaseName, parentLocation);
     }
 
-
-    protected void initCatalog(DataStoreProperties datastoreProperties) throws IOException {
-        slicesCatalog = new CoverageSlicesCatalog(datastoreProperties.getDatastoreSpi(), datastoreProperties.getParams());
+    /**
+     * Initialize a slicesCatalog on top of the provided {@link DataStoreConfiguration} 
+     * instance
+     * @param datastoreProperties
+     * @throws IOException
+     */
+    protected void initCatalog(DataStoreConfiguration datastoreProperties) throws IOException {
+        slicesCatalog = datastoreProperties.isShared() ?
+                new WrappedCoverageSlicesCatalog(datastoreProperties, file) :
+                    new CoverageSlicesCatalog(datastoreProperties);
     }
 
     @Override

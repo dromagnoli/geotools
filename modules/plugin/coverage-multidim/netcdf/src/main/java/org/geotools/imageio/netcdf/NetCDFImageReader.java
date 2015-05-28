@@ -31,14 +31,12 @@ import java.awt.image.WritableRaster;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serializable;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.DoubleBuffer;
 import java.nio.FloatBuffer;
 import java.nio.IntBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -59,13 +57,12 @@ import org.apache.commons.io.FilenameUtils;
 import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
+import org.geotools.coverage.io.catalog.DataStoreConfiguration;
 import org.geotools.coverage.io.range.FieldType;
 import org.geotools.coverage.io.range.RangeType;
 import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.DefaultTransaction;
-import org.geotools.data.DataAccessFactory.Param;
 import org.geotools.data.collection.ListFeatureCollection;
-import org.geotools.data.h2.H2DataStoreFactory;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.SchemaException;
@@ -79,7 +76,6 @@ import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities.CheckType;
 import org.geotools.referencing.factory.gridshift.DataUtilities;
 import org.geotools.resources.coverage.CoverageUtilities;
-import org.geotools.util.Converters;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
@@ -124,8 +120,6 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
     private final static Logger LOGGER = Logging.getLogger(NetCDFImageReader.class.toString());
 
-    private final static H2DataStoreFactory INTERNAL_STORE_SPI = new H2DataStoreFactory();
-
     /** 
      * An instance of {@link AncillaryFileManager} which takes care of handling all the auxiliary index
      * files and initializations.
@@ -159,10 +153,6 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     /** Internal Cache for CoverageSourceDescriptor.**/
     private final SoftValueHashMap<String, VariableAdapter> coverageSourceDescriptorsCache= new SoftValueHashMap<String, VariableAdapter>();
 
-    /** The source file */
-    private File file;
-
-    
     public NetCDFImageReader(ImageReaderSpi originatingProvider ) {
         super(originatingProvider);
     }
@@ -291,10 +281,9 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
             // init slice catalog
 //            final File sliceIndexFile = ancillaryFileManager.getSlicesIndexFile();
-            DataStoreProperties datastoreConnection = getDatastoreProperties();
-            initCatalog(datastoreConnection);
-//            initCatalog(sliceIndexFile.getParentFile(),
-//                FilenameUtils.removeExtension(FilenameUtils.getName(sliceIndexFile.getCanonicalPath())).replace(".", ""));
+            DataStoreConfiguration datastoreConfig = getDatastoreConfiguration();
+            boolean isShared = datastoreConfig.isShared();
+            initCatalog(datastoreConfig);
             final List<Variable> variables = dataset.getVariables();
             if (variables != null) {
 
@@ -320,7 +309,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         final Name coverageName = getCoverageName(varName);
                         final CoordinateSystem cs = NetCDFCRSUtilities.getCoordinateSystem(variable);
 
-                        final SimpleFeatureType indexSchema = getIndexSchema(coverageName, cs);
+                        final SimpleFeatureType indexSchema = getIndexSchema(coverageName, cs, isShared);
                         // get variable adapter which maps to a coverage in the end
                         final VariableAdapter vaAdapter = getCoverageDescriptor(coverageName);
 
@@ -340,11 +329,11 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         while (writtenFeatures < numberOfSlices) {
                             // Get a bunch of features 
                             vaAdapter.getFeatures(startPagingIndex, limit, collection);
-                            if (variableImageStartIndex != 0) {
+                            if (variableImageStartIndex != 0 || isShared) {
                                 // Need to updated the imageIndex of the features since all indexes 
                                 // are zero based inside each variable but we need to index them inside
                                 // the whole NetCDF dataset. 
-                                updateFeaturesIndex(collection, variableImageStartIndex);
+                                updateFeaturesIndex(collection, variableImageStartIndex, isShared);
                             }
                             final int features = collection.size();
                             if (features > 0) {
@@ -391,18 +380,20 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
      * Update features imageIndex by referring them to a specific offset
      * @param collection
      * @param offset
+     * @throws IOException 
      */
-    private void updateFeaturesIndex(final ListFeatureCollection collection, final int offset) {
+    private void updateFeaturesIndex(final ListFeatureCollection collection, final int offset, boolean isShared) throws IOException {
         final SimpleFeatureIterator featuresIt = collection.features();
         SimpleFeature feature = null;
         while (featuresIt.hasNext()) {
             feature = featuresIt.next();
             Integer index = (Integer) feature.getAttribute(CoverageSlice.Attributes.INDEX);
+            if (isShared) {
+                feature.setAttribute(CoverageSlice.Attributes.LOCATION, file.getCanonicalPath());
+            }
             feature.setAttribute(CoverageSlice.Attributes.INDEX, index + offset);
         }
     }
-
-
 
     private Name getCoverageName(String varName) {
         Name coverageName = ancillaryFileManager.getCoverageName(varName);
@@ -413,8 +404,6 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         coverages.add(coverageName);
         return coverageName;
     }
-
- 
 
     @Override
     public void dispose() {
@@ -467,7 +456,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         ancillaryFileManager.initSliceManager();
                         numImages = ancillaryFileManager.slicesIndexManager.getNumberOfRecords();
                         if (!ignoreMetadata) {
-                            DataStoreProperties datastoreConnection = getDatastoreProperties();
+                            DataStoreConfiguration datastoreConnection = getDatastoreConfiguration();
+                            settingTypeNames(datastoreConnection);
                             initCatalog(datastoreConnection);
                             coverages.addAll(ancillaryFileManager.getCoveragesNames());
                         }
@@ -500,9 +490,23 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         setNumImages(numImages);
     }
 
-    private DataStoreProperties getDatastoreProperties() throws IOException {
-        DataStoreProperties datastoreConnection = new DataStoreProperties();
+    private void settingTypeNames(DataStoreConfiguration datastoreConnection) {
+        if (!datastoreConnection.isShared()) {
+            Map<String, Serializable> params = datastoreConnection.getParams();
+            List<Name> coverages = ancillaryFileManager.getCoveragesNames();
+            StringBuilder builder = new StringBuilder();
+            for (Name coverage: coverages) {
+                builder.append(ancillaryFileManager.getTypeName(coverage.getLocalPart())).append(",");
+            }
+            String typeNames = builder.toString();
+            typeNames = typeNames.substring(0, typeNames.length() - 1);
+            params.put("TypeNames", typeNames);
+        }
+    }
+
+    private DataStoreConfiguration getDatastoreConfiguration() throws IOException {
         File datastoreIndexerFile = ancillaryFileManager.getDatastoreIndexFile();
+        DataStoreConfiguration datastoreConfiguration = null;
         if (datastoreIndexerFile != null) {
             URL datastoreURL = DataUtilities.fileToURL(datastoreIndexerFile);
             Properties properties = Utils.loadPropertiesFromURL(datastoreURL);
@@ -514,10 +518,10 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                             .newInstance();
                     Map<String, Serializable> datastoreParams = Utils.filterDataStoreParams(
                             properties, spi);
-                    datastoreConnection.setDatastoreSpi(spi);
-                    datastoreConnection.setParams(datastoreParams);
-                    
-                    // TODO: Set typenames
+                    datastoreConfiguration = new DataStoreConfiguration(spi, datastoreParams);
+                    datastoreConfiguration.setDatastoreSpi(spi);
+                    datastoreConfiguration.setParams(datastoreParams);
+                    datastoreConfiguration.setShared(true);
                 } catch (Exception e) {
                     final IOException ioe = new IOException();
                     throw (IOException) ioe.initCause(e);
@@ -526,38 +530,12 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         } else {
             final File slicesIndexFile = ancillaryFileManager.getSlicesIndexFile();
             File parentFile = slicesIndexFile.getParentFile();
-            datastoreConnection.setDatastoreSpi(INTERNAL_STORE_SPI);
-            String database = FilenameUtils.removeExtension(FilenameUtils.getName(slicesIndexFile.getCanonicalPath())).replace(".", "");
-            datastoreConnection.setParams(createParams(database, parentFile));
+            String database = FilenameUtils.removeExtension(
+                    FilenameUtils.getName(slicesIndexFile.getCanonicalPath())).replace(".", "");
+            datastoreConfiguration = new DataStoreConfiguration(DataStoreConfiguration.getDefaultParams(database, parentFile));
         }
-        return datastoreConnection;
+        return datastoreConfiguration;
     }
-
-    /**
-     * @param database
-     * @param parentLocation2
-     * @return
-     */
-    private static Map<String, Serializable> createParams(String database, File parentLocation) {
-        Utilities.ensureNonNull("database", database);
-        Utilities.ensureNonNull("parentLocation", parentLocation);
-        final Map<String, Serializable> params = new HashMap<String, Serializable>();
-        params.put("ScanTypeNames", Boolean.valueOf(true));
-        final String url = DataUtilities.fileToURL(parentLocation).toExternalForm();
-        String updatedDB;
-        try {
-            updatedDB = "file:" + (new File(DataUtilities.urlToFile(new URL(url)), database)).getPath();
-            params.put("ParentLocation", url);
-            params.put("database", updatedDB);
-            params.put("dbtype", "h2");
-            params.put("user", "geotools");
-            params.put("passwd", "geotools");
-        } catch (MalformedURLException e) {
-            throw new IllegalArgumentException(e);
-        }
-        return params;
-    }
-    
 
     /**
      * Wraps a generic exception into a {@link IIOException}.
@@ -918,7 +896,12 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         }
     }
 
-    public SimpleFeatureType getIndexSchema(Name coverageName, CoordinateSystem coordinateSystem) throws Exception {
+    private SimpleFeatureType getIndexSchema(Name coverageName, CoordinateSystem cs) throws Exception {
+        return getIndexSchema(coverageName, cs, false);
+    }
+
+    
+    public SimpleFeatureType getIndexSchema(Name coverageName, CoordinateSystem coordinateSystem, boolean isShared) throws Exception {
         // get the name for this variable to check his coveragename
         final String _coverageName = coverageName.toString();
         // get the coverage definition for this variable, at this stage this exists otherwise we would have skipped it!
@@ -931,7 +914,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         // no schema was defined yet, let's create a default one
         if (schema == null||schema.getAttributes()==null) {
             // TODO incapsulate in coveragedescriptor
-            schemaDef = suggestSchemaFromCoordinateSystem(coverage, coordinateSystem);
+            schemaDef = suggestSchemaFromCoordinateSystem(coverage, coordinateSystem, isShared);
 
             //set the schema name to be the coverageName
             ancillaryFileManager.setSchema(coverage,coverage.getName(),schemaDef);
@@ -950,16 +933,17 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         return indexSchema;
     }
 
+    
     /**
      * @param coverage
      * @param cs
      * @return
      * @throws SchemaException 
      */
-    String suggestSchemaFromCoordinateSystem(Coverage coverage, CoordinateSystem cs) throws SchemaException {
+    String suggestSchemaFromCoordinateSystem(Coverage coverage, CoordinateSystem cs, boolean isShared) throws SchemaException {
 
         // init with base
-        String schemaAttributes = CoverageSlice.Attributes.BASE_SCHEMA;
+        String schemaAttributes = isShared ? CoverageSlice.Attributes.BASE_SCHEMA_LOCATION : CoverageSlice.Attributes.BASE_SCHEMA;
 
         // check other dimensions
         for (CoordinateAxis axis:cs.getCoordinateAxes()) {
