@@ -31,6 +31,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import org.apache.commons.io.FilenameUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.DataUtilities;
@@ -46,6 +47,8 @@ import org.geotools.data.store.ContentFeatureSource;
 import org.geotools.feature.DefaultFeatureCollection;
 import org.geotools.feature.SchemaException;
 import org.geotools.feature.visitor.FeatureCalc;
+import org.geotools.gce.imagemosaic.Utils;
+import org.geotools.gce.imagemosaic.catalog.postgis.PostgisDatastoreWrapper;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 import org.geotools.resources.coverage.FeatureUtilities;
 import org.geotools.util.SoftValueHashMap;
@@ -66,6 +69,9 @@ public class CoverageSlicesCatalog {
     /**
      * CoverageSlicesCatalog always used an hidden H2 DB to store granules
      * index related to a specific file.
+     * 
+     * Starting from 14.x it also can be setup on top of a shared PostGIS
+     * datastore.
      * 
      * Using a PostGIS shared index, we need to add a LOCATION attribute
      * to distinguish the different granules, as well as add a Filter
@@ -142,6 +148,8 @@ public class CoverageSlicesCatalog {
 
     public final static String IMAGE_INDEX_ATTR = "imageindex";
 
+    private static final String HIDDEN_FOLDER = ".mapping";
+
     private final SoftValueHashMap<Integer, CoverageSlice> coverageSliceDescriptorsCache = new SoftValueHashMap<Integer, CoverageSlice>(0);
 
     public CoverageSlicesCatalog(final String database, final File parentLocation) {
@@ -157,12 +165,21 @@ public class CoverageSlicesCatalog {
             // creating a store, this might imply creating it for an existing underlying store or
             // creating a brand new one
             slicesIndexStore = spi.createDataStore(params);
+            boolean isPostgis = Utils.isPostgisStore(spi); 
+            boolean wrapDatastore = false;
+            String parentLocation = (String) params.get(Utils.Prop.PARENT_LOCATION);
+            if (params.containsKey(Utils.Prop.WRAP_STORE)) {
+                wrapDatastore = (Boolean) params.get(Utils.Prop.WRAP_STORE);
+            }
+            if (isPostgis && wrapDatastore) {
+                slicesIndexStore = new PostgisDatastoreWrapper(slicesIndexStore, parentLocation, HIDDEN_FOLDER);
+            }
 
-            // if this is not a new store let's extract basic properties from it
             String typeName = null;
             String[] typeNamesValues = null;
             boolean scanForTypeNames = false;
 
+            
             // Handle multiple typeNames
             if (params.containsKey("TypeName")) {
                 typeName = (String) params.get("TypeName");

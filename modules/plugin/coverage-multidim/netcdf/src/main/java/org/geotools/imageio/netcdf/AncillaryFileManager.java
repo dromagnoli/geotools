@@ -393,6 +393,10 @@ public class AncillaryFileManager implements FileSetManager{
         return indexerFile;
     }
     
+    public File getDestinationDir() {
+        return destinationDir;
+    }
+
     public File getDatastoreIndexFile() {
         return datastoreIndexFile;
     }
@@ -650,7 +654,7 @@ public class AncillaryFileManager implements FileSetManager{
      */
     public boolean acceptsVariable(String varName) {
         Utilities.ensureNonNull("varName", varName);
-        if(indexer==null){
+        if (indexer == null || indexer.getCoverages() == null) {
             return true;
         }
         for (Coverage filteringCoverage: indexer.getCoverages().getCoverage()) {
@@ -704,7 +708,7 @@ public class AncillaryFileManager implements FileSetManager{
         return buf.toString();
     }
 
-    public ParametersType getParameters() {
-        return indexer.getParameters();
+    public ParametersType getIndexerParameters() {
+        return indexer != null ? indexer.getParameters() : null;
     }
 }

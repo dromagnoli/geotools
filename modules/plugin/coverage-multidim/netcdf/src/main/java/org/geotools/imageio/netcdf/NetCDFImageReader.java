@@ -68,6 +68,8 @@ import org.geotools.feature.NameImpl;
 import org.geotools.feature.SchemaException;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages.Coverage;
+import org.geotools.gce.imagemosaic.catalog.index.IndexerUtils;
+import org.geotools.gce.imagemosaic.catalog.index.ParametersType;
 import org.geotools.gce.imagemosaic.catalog.index.SchemaType;
 import org.geotools.imageio.GeoSpatialImageReader;
 import org.geotools.imageio.netcdf.cv.CoordinateVariable;
@@ -239,7 +241,6 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         return null;
     }
 
-
     /**
      * Reset the status of this reader
      */
@@ -280,7 +281,6 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         try {
 
             // init slice catalog
-//            final File sliceIndexFile = ancillaryFileManager.getSlicesIndexFile();
             DataStoreConfiguration datastoreConfig = getDatastoreConfiguration();
             boolean isShared = datastoreConfig.isShared();
             initCatalog(datastoreConfig);
@@ -456,17 +456,17 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         ancillaryFileManager.initSliceManager();
                         numImages = ancillaryFileManager.slicesIndexManager.getNumberOfRecords();
                         if (!ignoreMetadata) {
-                            DataStoreConfiguration datastoreConnection = getDatastoreConfiguration();
-                            settingTypeNames(datastoreConnection);
-                            initCatalog(datastoreConnection);
                             coverages.addAll(ancillaryFileManager.getCoveragesNames());
+                            DataStoreConfiguration datastoreConfiguration = getDatastoreConfiguration();
+                            settingTypeNames(datastoreConfiguration);
+                            initCatalog(datastoreConfiguration);
                         }
                     }
 
                     if (numImages <= 0 || !slicesIndexFile.exists()) {
                         // === index doesn't exists already, build it first
                         // close existing
-                        
+
                         // TODO: Optimize this. Why it's storing the index and reading it back??
                         ancillaryFileManager.resetSliceManager();
                         numImages = initIndex();
@@ -490,18 +490,17 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         setNumImages(numImages);
     }
 
-    private void settingTypeNames(DataStoreConfiguration datastoreConnection) {
-        if (!datastoreConnection.isShared()) {
-            Map<String, Serializable> params = datastoreConnection.getParams();
-            List<Name> coverages = ancillaryFileManager.getCoveragesNames();
-            StringBuilder builder = new StringBuilder();
-            for (Name coverage: coverages) {
-                builder.append(ancillaryFileManager.getTypeName(coverage.getLocalPart())).append(",");
-            }
-            String typeNames = builder.toString();
-            typeNames = typeNames.substring(0, typeNames.length() - 1);
-            params.put("TypeNames", typeNames);
+    private void settingTypeNames(DataStoreConfiguration datastoreConfiguration) {
+        Map<String, Serializable> params = datastoreConfiguration.getParams();
+        List<Name> coverages = ancillaryFileManager.getCoveragesNames();
+        StringBuilder builder = new StringBuilder();
+        for (Name coverage : coverages) {
+            builder.append(ancillaryFileManager.getTypeName(coverage.getLocalPart())).append(",");
         }
+        String typeNames = builder.toString();
+        typeNames = typeNames.substring(0, typeNames.length() - 1);
+        params.put("TypeNames", typeNames);
+
     }
 
     private DataStoreConfiguration getDatastoreConfiguration() throws IOException {
@@ -518,10 +517,14 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                             .newInstance();
                     Map<String, Serializable> datastoreParams = Utils.filterDataStoreParams(
                             properties, spi);
+
+                    // create a datastore configuration using the specified SPI and datastoreParams
                     datastoreConfiguration = new DataStoreConfiguration(spi, datastoreParams);
                     datastoreConfiguration.setDatastoreSpi(spi);
                     datastoreConfiguration.setParams(datastoreParams);
                     datastoreConfiguration.setShared(true);
+                    // update params for the shared case
+                    updateParams(datastoreConfiguration);
                 } catch (Exception e) {
                     final IOException ioe = new IOException();
                     throw (IOException) ioe.initCause(e);
@@ -535,6 +538,16 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
             datastoreConfiguration = new DataStoreConfiguration(DataStoreConfiguration.getDefaultParams(database, parentFile));
         }
         return datastoreConfiguration;
+    }
+
+    private void updateParams(DataStoreConfiguration datastoreConfiguration) throws IOException {
+        Map<String, Serializable> params = datastoreConfiguration.getParams();
+        ParametersType indexerParams = ancillaryFileManager.getIndexerParameters();
+        String param = IndexerUtils.getParam(indexerParams, Utils.Prop.WRAP_STORE);
+        if (param != null && param.trim().equalsIgnoreCase("true")) {
+            params.put(Utils.Prop.WRAP_STORE, true);
+            params.put(Utils.Prop.PARENT_LOCATION, DataUtilities.fileToURL(ancillaryFileManager.getDestinationDir()).toString());
+        }
     }
 
     /**

@@ -186,13 +186,13 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
     /**
      * Initialize a slicesCatalog on top of the provided {@link DataStoreConfiguration} 
      * instance
-     * @param datastoreProperties
+     * @param datastoreConfig
      * @throws IOException
      */
-    protected void initCatalog(DataStoreConfiguration datastoreProperties) throws IOException {
-        slicesCatalog = datastoreProperties.isShared() ?
-                new WrappedCoverageSlicesCatalog(datastoreProperties, file) :
-                    new CoverageSlicesCatalog(datastoreProperties);
+    protected void initCatalog(DataStoreConfiguration datastoreConfig) throws IOException {
+        slicesCatalog = datastoreConfig.isShared() ?
+                new WrappedCoverageSlicesCatalog(datastoreConfig, file) :
+                    new CoverageSlicesCatalog(datastoreConfig);
     }
 
     @Override
