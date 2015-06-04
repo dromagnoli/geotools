@@ -201,6 +201,7 @@ public class Utils {
         public final static String EXP_RGB = "ExpandToRGB";
         public final static String ABSOLUTE_PATH = "AbsolutePath";
         public final static String AUXILIARY_FILE = "AuxiliaryFile";
+        public final static String AUXILIARY_DATASTORE_FILE = "AuxiliaryDatastoreFile";
         public final static String NAME = "Name";
         public final static String INDEX_NAME = "Name";
         public final static String FOOTPRINT_MANAGEMENT = "FootprintManagement";
