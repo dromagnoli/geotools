@@ -42,7 +42,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -53,30 +52,24 @@ import javax.imageio.ImageReader;
 import javax.imageio.ImageTypeSpecifier;
 import javax.imageio.spi.ImageReaderSpi;
 
-import org.apache.commons.io.FilenameUtils;
 import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.catalog.DataStoreConfiguration;
 import org.geotools.coverage.io.range.FieldType;
 import org.geotools.coverage.io.range.RangeType;
-import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.DefaultTransaction;
 import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.SchemaException;
-import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages.Coverage;
-import org.geotools.gce.imagemosaic.catalog.index.IndexerUtils;
-import org.geotools.gce.imagemosaic.catalog.index.ParametersType;
 import org.geotools.gce.imagemosaic.catalog.index.SchemaType;
 import org.geotools.imageio.GeoSpatialImageReader;
 import org.geotools.imageio.netcdf.cv.CoordinateVariable;
 import org.geotools.imageio.netcdf.utilities.NetCDFCRSUtilities;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities.CheckType;
-import org.geotools.referencing.factory.gridshift.DataUtilities;
 import org.geotools.resources.coverage.CoverageUtilities;
 import org.geotools.util.SoftValueHashMap;
 import org.geotools.util.Utilities;
@@ -259,7 +252,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
             dataset = extractDataset(input);
             file = NetCDFUtilities.getFile(input);
             if (file != null) {
-                ancillaryFileManager = new AncillaryFileManager(file, getAuxiliaryFilesPath());
+                ancillaryFileManager = new AncillaryFileManager(file, getAuxiliaryFilesPath(), getAuxiliaryDatastorePath());
             }
 
             init();
@@ -281,7 +274,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         try {
 
             // init slice catalog
-            DataStoreConfiguration datastoreConfig = getDatastoreConfiguration();
+            DataStoreConfiguration datastoreConfig = ancillaryFileManager.getDatastoreConfiguration();
             boolean isShared = datastoreConfig.isShared();
             initCatalog(datastoreConfig);
             final List<Variable> variables = dataset.getVariables();
@@ -457,7 +450,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         numImages = ancillaryFileManager.slicesIndexManager.getNumberOfRecords();
                         if (!ignoreMetadata) {
                             coverages.addAll(ancillaryFileManager.getCoveragesNames());
-                            DataStoreConfiguration datastoreConfiguration = getDatastoreConfiguration();
+                            DataStoreConfiguration datastoreConfiguration = ancillaryFileManager.getDatastoreConfiguration();
                             settingTypeNames(datastoreConfiguration);
                             initCatalog(datastoreConfiguration);
                         }
@@ -501,53 +494,6 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         typeNames = typeNames.substring(0, typeNames.length() - 1);
         params.put("TypeNames", typeNames);
 
-    }
-
-    private DataStoreConfiguration getDatastoreConfiguration() throws IOException {
-        File datastoreIndexerFile = ancillaryFileManager.getDatastoreIndexFile();
-        DataStoreConfiguration datastoreConfiguration = null;
-        if (datastoreIndexerFile != null) {
-            URL datastoreURL = DataUtilities.fileToURL(datastoreIndexerFile);
-            Properties properties = Utils.loadPropertiesFromURL(datastoreURL);
-            if (properties != null) {
-                final String SPIClass = properties.getProperty("SPI");
-                try {
-                    // create a datastore as instructed
-                    final DataStoreFactorySpi spi = (DataStoreFactorySpi) Class.forName(SPIClass)
-                            .newInstance();
-                    Map<String, Serializable> datastoreParams = Utils.filterDataStoreParams(
-                            properties, spi);
-
-                    // create a datastore configuration using the specified SPI and datastoreParams
-                    datastoreConfiguration = new DataStoreConfiguration(spi, datastoreParams);
-                    datastoreConfiguration.setDatastoreSpi(spi);
-                    datastoreConfiguration.setParams(datastoreParams);
-                    datastoreConfiguration.setShared(true);
-                    // update params for the shared case
-                    updateParams(datastoreConfiguration);
-                } catch (Exception e) {
-                    final IOException ioe = new IOException();
-                    throw (IOException) ioe.initCause(e);
-                }
-            }
-        } else {
-            final File slicesIndexFile = ancillaryFileManager.getSlicesIndexFile();
-            File parentFile = slicesIndexFile.getParentFile();
-            String database = FilenameUtils.removeExtension(
-                    FilenameUtils.getName(slicesIndexFile.getCanonicalPath())).replace(".", "");
-            datastoreConfiguration = new DataStoreConfiguration(DataStoreConfiguration.getDefaultParams(database, parentFile));
-        }
-        return datastoreConfiguration;
-    }
-
-    private void updateParams(DataStoreConfiguration datastoreConfiguration) throws IOException {
-        Map<String, Serializable> params = datastoreConfiguration.getParams();
-        ParametersType indexerParams = ancillaryFileManager.getIndexerParameters();
-        String param = IndexerUtils.getParam(indexerParams, Utils.Prop.WRAP_STORE);
-        if (param != null && param.trim().equalsIgnoreCase("true")) {
-            params.put(Utils.Prop.WRAP_STORE, true);
-            params.put(Utils.Prop.PARENT_LOCATION, DataUtilities.fileToURL(ancillaryFileManager.getDestinationDir()).toString());
-        }
     }
 
     /**

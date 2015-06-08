@@ -22,7 +22,9 @@ import java.io.IOException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
@@ -30,22 +32,33 @@ import java.util.logging.Logger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+import org.geotools.coverage.grid.io.GranuleSource;
+import org.geotools.coverage.grid.io.HarvestedSource;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.netcdf.crs.NetCDFCRSAuthorityFactory;
 import org.geotools.data.DataUtilities;
 import org.geotools.data.Query;
+import org.geotools.data.simple.SimpleFeatureCollection;
+import org.geotools.data.simple.SimpleFeatureIterator;
+import org.geotools.factory.CommonFactoryFinder;
 import org.geotools.feature.NameImpl;
+import org.geotools.gce.imagemosaic.ImageMosaicFormat;
+import org.geotools.gce.imagemosaic.ImageMosaicReader;
 import org.geotools.imageio.netcdf.NetCDFImageReader;
 import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
 import org.geotools.imageio.netcdf.Slice2DIndex;
 import org.geotools.test.OnlineTestCase;
 import org.geotools.test.TestData;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.opengis.feature.Property;
 import org.opengis.feature.simple.SimpleFeature;
 import org.opengis.feature.type.Name;
 import org.opengis.filter.Filter;
+import org.opengis.filter.FilterFactory2;
+import org.opengis.filter.sort.SortBy;
+import org.opengis.filter.sort.SortOrder;
 
 /**
  * Testing Low level index based on PostGis
@@ -71,7 +84,7 @@ public final class PostGisIndexTest extends OnlineTestCase {
 
     private final static String UTM_DIR = "utmDir";
 
-    @Test
+    @Ignore
     public void testPostGisIndexWrapping() throws Exception {
         final String auxName = "O3NO2wrapped.xml";
         File file = TestData.file(this, GOME_FILE);
@@ -85,7 +98,7 @@ public final class PostGisIndexTest extends OnlineTestCase {
         File destAuxFile = new File(dir, auxName);
         FileUtils.copyFile(file, destFile);
         FileUtils.copyFile(auxFile, destAuxFile);
-        createDatastoreProperties(dir);
+        createDatastoreProperties(dir, null);
 
         final NetCDFImageReaderSpi unidataImageReaderSpi = new NetCDFImageReaderSpi();
         assertTrue(unidataImageReaderSpi.canDecodeInput(file));
@@ -130,13 +143,20 @@ public final class PostGisIndexTest extends OnlineTestCase {
         }
     }
 
-    private void createDatastoreProperties(File dir) throws IOException {
+    private void createDatastoreProperties(File dir, Map<String, String> override) throws IOException {
         FileWriter out = null;
         try {
 
             // Preparing custom multidim datastore properties
             out = new FileWriter(new File(dir, "mddatastore.properties"));
             final Properties props = createExampleFixture();
+            if (override != null && override.isEmpty()) {
+                Set<String> mapKeys = override.keySet();
+                for (String mapKey: mapKeys) {
+                    String value = override.get(mapKey);
+                    props.setProperty(mapKey, value);
+                }
+            }
 
             final Set<Object> keyset = props.keySet();
             for (Object key : keyset) {
@@ -162,7 +182,7 @@ public final class PostGisIndexTest extends OnlineTestCase {
         }
         File destFile = new File(dir, "utm.nc");
         FileUtils.copyFile(file, destFile);
-        createDatastoreProperties(dir);
+        createDatastoreProperties(dir, null);
 
         final NetCDFImageReaderSpi unidataImageReaderSpi = new NetCDFImageReaderSpi();
         assertTrue(unidataImageReaderSpi.canDecodeInput(destFile));
@@ -214,6 +234,92 @@ public final class PostGisIndexTest extends OnlineTestCase {
         }
     }
 
+    @Test
+    public void testMosaicUsingPostGisIndexForNC() throws Exception {
+        // prepare a "mosaic" with just one NetCDF
+        File nc1 = TestData.file(this,"polyphemus_20130301_test.nc");
+        File mosaic = new File(TestData.file(this,"."),"mosaic");
+        if (mosaic.exists()) {
+            FileUtils.deleteDirectory(mosaic);
+        }
+        assertTrue(mosaic.mkdirs());
+        FileUtils.copyFileToDirectory(nc1, mosaic);
+
+        // The indexer
+        String indexer = "TimeAttribute=time\n" + 
+                "Schema=the_geom:Polygon,location:String,imageindex:Integer,time:java.util.Date\n"
+                +"AuxiliaryDatastoreFile=mddatastore.properties";
+        FileUtils.writeStringToFile(new File(mosaic, "indexer.properties"), indexer);
+
+        // using an H2 based datastore for imageMosaic index
+        File dsp = TestData.file(this, "datastore.properties");
+        FileUtils.copyFileToDirectory(dsp, mosaic);
+        Map<String, String> overrideMap = new HashMap<String, String>();
+        overrideMap.put("database", "lowlevelindex");
+        createDatastoreProperties(mosaic, overrideMap);
+
+        // have the reader harvest it
+        ImageMosaicFormat format = new ImageMosaicFormat();
+        ImageMosaicReader reader = format.getReader(mosaic);
+        SimpleFeatureIterator it = null;
+        assertNotNull(reader);
+        try {
+            String[] names = reader.getGridCoverageNames();
+            assertEquals(1, names.length);
+            assertEquals("O3", names[0]);
+            
+            // check we have the two granules we expect
+            GranuleSource source = reader.getGranules("O3", true);
+            FilterFactory2 ff = CommonFactoryFinder.getFilterFactory2();
+            Query q = new Query(Query.ALL);
+            q.setSortBy(new SortBy[] {ff.sort("time", SortOrder.ASCENDING)});
+            SimpleFeatureCollection granules = source.getGranules(q);
+            assertEquals(2, granules.size());
+            it = granules.features();
+            assertTrue(it.hasNext());
+            SimpleFeature f = it.next();
+            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+            assertEquals(0, f.getAttribute("imageindex"));
+            assertEquals("2013-03-01T00:00:00.000Z", ConvertersHack.convert(f.getAttribute("time"), String.class));
+            assertTrue(it.hasNext());
+            f = it.next();
+            assertEquals("polyphemus_20130301_test.nc", f.getAttribute("location"));
+            assertEquals(1, f.getAttribute("imageindex"));
+            assertEquals("2013-03-01T01:00:00.000Z", ConvertersHack.convert(f.getAttribute("time"), String.class));
+            it.close();
+            
+            // close the reader and re-open it
+            reader.dispose();
+            reader = format.getReader(mosaic);
+            source = reader.getGranules("O3", true);
+            
+            // wait a bit, we have to make sure the old indexes are recognized as old
+            Thread.sleep(1000);
+            
+            // now replace the netcdf file with a more up to date version of the same 
+            File nc2 = TestData.file(this,"polyphemus_20130302_test.nc");
+            File target = new File(mosaic, "polyphemus_20130302_test.nc");
+            FileUtils.copyFile(nc2, target, false);
+            File fileToHarvest = new File(mosaic, "polyphemus_20130302_test.nc");
+            List<HarvestedSource> harvestSummary = reader.harvest(null, fileToHarvest, null);
+            assertEquals(2, harvestSummary.size());
+            HarvestedSource hf = harvestSummary.get(0);
+            assertEquals("polyphemus_20130302_test.nc", ((File) hf.getSource()).getName());
+            assertTrue(hf.success());
+            assertEquals(1, reader.getGridCoverageNames().length);
+            
+            // check that we have four times now
+            source = reader.getGranules("O3", true);
+            granules = source.getGranules(q);
+            assertEquals(4, granules.size());
+        } finally {
+            if(it != null) {
+                it.close();
+            }
+            reader.dispose();
+        }
+    }
+    
     private void checkGranules(List<CoverageSlice> granules) {
         assertNotNull(granules);
         assertFalse(granules.isEmpty());

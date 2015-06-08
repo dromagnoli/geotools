@@ -56,6 +56,8 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
 
     private String auxiliaryFilesPath = null;
 
+    private String auxiliaryDatastorePath = null;
+
     protected GeoSpatialImageReader(ImageReaderSpi originatingProvider) {
         super(originatingProvider);
     }
@@ -159,6 +161,14 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
 
     public void setAuxiliaryFilesPath(String auxiliaryFilesPath) {
         this.auxiliaryFilesPath = auxiliaryFilesPath;
+    }
+
+    public String getAuxiliaryDatastorePath() {
+        return auxiliaryDatastorePath;
+    }
+
+    public void setAuxiliaryDatastorePath(String auxiliaryDatastorePath) {
+        this.auxiliaryDatastorePath = auxiliaryDatastorePath;
     }
 
     /**

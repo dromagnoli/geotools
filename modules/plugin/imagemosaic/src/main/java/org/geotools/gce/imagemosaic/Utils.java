@@ -141,6 +141,8 @@ public class Utils {
     public final static Key CHECK_AUXILIARY_METADATA = new Key(Boolean.class);
 
     public final static Key AUXILIARY_FILES_PATH = new Key(String.class);
+    
+    public final static Key AUXILIARY_DATASTORE_PATH = new Key(String.class);
 
     public final static Key PARENT_DIR = new Key(String.class);
 
