@@ -31,7 +31,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import org.apache.commons.io.FilenameUtils;
 import org.geotools.data.DataStore;
 import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.data.DataUtilities;
@@ -164,8 +163,17 @@ public class CoverageSlicesCatalog {
 
             // creating a store, this might imply creating it for an existing underlying store or
             // creating a brand new one
+            boolean isPostgis = Utils.isPostgisStore(spi);
+            boolean isH2 = Utils.isH2Store(spi);
+            if (!(isH2 || isPostgis)) {
+                throw new IllegalArgumentException(
+                        "Low level index for multidim granules only supports"
+                        + " H2 and PostGIS databases");
+            }
+            if (isPostgis) {
+                Utils.fixPostgisDBCreationParams(params);
+            }
             slicesIndexStore = spi.createDataStore(params);
-            boolean isPostgis = Utils.isPostgisStore(spi); 
             boolean wrapDatastore = false;
             String parentLocation = (String) params.get(Utils.Prop.PARENT_LOCATION);
             if (params.containsKey(Utils.Prop.WRAP_STORE)) {

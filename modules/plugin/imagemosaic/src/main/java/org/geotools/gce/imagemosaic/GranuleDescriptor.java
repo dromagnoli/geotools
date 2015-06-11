@@ -324,7 +324,7 @@ public class GranuleDescriptor {
                 File granuleFile = DataUtilities.urlToFile(granuleUrl);
                 AbstractGridFormat format = (AbstractGridFormat) GridFormatFinder.findFormat(granuleFile,
                         EXCLUDE_MOSAIC);
-                AbstractGridCoverage2DReader gcReader = format.getReader(granuleFile);
+                AbstractGridCoverage2DReader gcReader = format.getReader(granuleFile, hints);
                 // Getting Dataset Layout
                 layout = gcReader.getDatasetLayout();
 

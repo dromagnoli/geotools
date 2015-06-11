@@ -471,9 +471,11 @@ public class Utils {
 				
 		}
 		
-		if (!ignoreSome
-                        || !ignorePropertiesSet.contains(Prop.AUXILIARY_FILE)) {
-                    retValue.setAuxiliaryFilePath(properties.getProperty(Prop.AUXILIARY_FILE));
+        if (!ignoreSome || !ignorePropertiesSet.contains(Prop.AUXILIARY_FILE)) {
+            retValue.setAuxiliaryFilePath(properties.getProperty(Prop.AUXILIARY_FILE));
+        }
+        if (!ignoreSome || !ignorePropertiesSet.contains(Prop.AUXILIARY_DATASTORE_FILE)) {
+            retValue.setAuxiliaryDatastorePath(properties.getProperty(Prop.AUXILIARY_DATASTORE_FILE));
         }
 
                 if (!ignoreSome || !ignorePropertiesSet.contains(Prop.CHECK_AUXILIARY_METADATA)) {

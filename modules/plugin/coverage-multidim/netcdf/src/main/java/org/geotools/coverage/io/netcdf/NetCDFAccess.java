@@ -127,16 +127,18 @@ public class NetCDFAccess extends DefaultFileCoverageAccess implements CoverageA
 
     private void setAuxiliaryEntries(Hints hints) {
         String prefix = "";
-        if (hints.containsKey(Utils.PARENT_DIR)) {
-            prefix = (String) hints.get(Utils.PARENT_DIR) + File.separatorChar;
-        }
-        if (hints != null && hints.containsKey(Utils.AUXILIARY_FILES_PATH)) {
-            String filePath = prefix + (String) hints.get(Utils.AUXILIARY_FILES_PATH);
-            reader.setAuxiliaryFilesPath(filePath);
-        }
-        if (hints != null && hints.containsKey(Utils.AUXILIARY_DATASTORE_PATH)) {
-            String filePath = prefix + (String) hints.get(Utils.AUXILIARY_DATASTORE_PATH);
-            reader.setAuxiliaryDatastorePath(filePath);
+        if (hints != null) {
+            if (hints.containsKey(Utils.PARENT_DIR)) {
+                prefix = (String) hints.get(Utils.PARENT_DIR) + File.separatorChar;
+            }
+            if (hints.containsKey(Utils.AUXILIARY_FILES_PATH)) {
+                String filePath = prefix + (String) hints.get(Utils.AUXILIARY_FILES_PATH);
+                reader.setAuxiliaryFilesPath(filePath);
+            }
+            if (hints.containsKey(Utils.AUXILIARY_DATASTORE_PATH)) {
+                String filePath = prefix + (String) hints.get(Utils.AUXILIARY_DATASTORE_PATH);
+                reader.setAuxiliaryDatastorePath(filePath);
+            }
         }
     }
 

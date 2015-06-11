@@ -77,7 +77,7 @@ public class AncillaryFileManager implements FileSetManager{
 
     enum AuxiliaryFileType {
         INDEXER_XML {
-            File lookup(String filePath, String baseName, File parentDirectory,
+            File lookup(String baseName, File parentDirectory,
                     File destinationDirectory) {
                 File file;
                 // CASE 1: side file (for backward compatibility)
@@ -108,7 +108,7 @@ public class AncillaryFileManager implements FileSetManager{
         },
 
         INDEXER_DATASTORE {
-            File lookup (String filePath, String baseName, File parentDirectory, File destinationDirectory) {
+            File lookup (String baseName, File parentDirectory, File destinationDirectory) {
                 File file = null;
 
                 // CASE 1: side file (for backward compatibility)
@@ -131,12 +131,15 @@ public class AncillaryFileManager implements FileSetManager{
                     // CASE 3: the recent approach using HASH of the file to prevent conflicts
                     // With files with same name
                     file = new File(destinationDirectory, DEFAULT_DATASTORE_PROPERTIES);
+                    if (!file.exists() || !file.canRead()) {
+                        file = null;
+                    }
                 }
                 return file;
             }
         };
 
-        abstract File lookup (String filePath, String baseName, File parentDirectory, File destinationDirectory);
+        abstract File lookup (String baseName, File parentDirectory, File destinationDirectory);
     }
 
     private FileSetManager fileSetManager; 
@@ -298,7 +301,7 @@ public class AncillaryFileManager implements FileSetManager{
         if (file != null) {
             return file;
         } else {
-            file = type.lookup(filePath, baseName, parentDirectory, destinationDir);
+            file = type.lookup(baseName, parentDirectory, destinationDir);
         }
 
         return file;
@@ -767,7 +770,8 @@ public class AncillaryFileManager implements FileSetManager{
     }
 
     /**
-     * Create the {@link DataStoreConfiguration}.
+     * Create the {@link DataStoreConfiguration} using the external
+     * datastoreIndexFile if provided, or the H2 based default.
      * @return
      * @throws IOException
      */
@@ -807,6 +811,13 @@ public class AncillaryFileManager implements FileSetManager{
         return datastoreConfiguration;
     }
 
+    /**
+     * Check whether the dataStore needs to be wrapped 
+     * (as an instance, to allow long typeNames and attributes).
+     * 
+     * @param datastoreConfiguration
+     * @throws IOException
+     */
     private void checkStoreWrapping(DataStoreConfiguration datastoreConfiguration) throws IOException {
         Map<String, Serializable> params = datastoreConfiguration.getParams();
         ParametersType indexerParams = indexer != null ? indexer.getParameters() : null;

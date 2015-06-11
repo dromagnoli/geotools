@@ -42,6 +42,7 @@ import org.geotools.data.Query;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.factory.CommonFactoryFinder;
+import org.geotools.factory.Hints;
 import org.geotools.feature.NameImpl;
 import org.geotools.gce.imagemosaic.ImageMosaicFormat;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
@@ -74,6 +75,7 @@ public final class PostGisIndexTest extends OnlineTestCase {
                 .getCanonicalPath();
         System.setProperty(NetCDFCRSAuthorityFactory.SYSTEM_DEFAULT_USER_PROJ_FILE,
                 netcdfPropertiesPath);
+        Hints.putSystemDefault(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER, Boolean.TRUE);
     }
 
     private final static Logger LOGGER = Logger.getLogger(PostGisIndexTest.class.toString());
@@ -150,7 +152,7 @@ public final class PostGisIndexTest extends OnlineTestCase {
             // Preparing custom multidim datastore properties
             out = new FileWriter(new File(dir, "mddatastore.properties"));
             final Properties props = createExampleFixture();
-            if (override != null && override.isEmpty()) {
+            if (override != null && !override.isEmpty()) {
                 Set<String> mapKeys = override.keySet();
                 for (String mapKey: mapKeys) {
                     String value = override.get(mapKey);
@@ -302,7 +304,7 @@ public final class PostGisIndexTest extends OnlineTestCase {
             FileUtils.copyFile(nc2, target, false);
             File fileToHarvest = new File(mosaic, "polyphemus_20130302_test.nc");
             List<HarvestedSource> harvestSummary = reader.harvest(null, fileToHarvest, null);
-            assertEquals(2, harvestSummary.size());
+            assertEquals(1, harvestSummary.size());
             HarvestedSource hf = harvestSummary.get(0);
             assertEquals("polyphemus_20130302_test.nc", ((File) hf.getSource()).getName());
             assertTrue(hf.success());
@@ -362,6 +364,8 @@ public final class PostGisIndexTest extends OnlineTestCase {
         final File dir = TestData.file(this, ".");
         cleanupFolders(dir);
         removeTables(new String[] { "O3", "NO2", "Band1" }, "catalogtest");
+        removeTables(new String[] { "O3"}, "lowlevelindex");
+        Hints.removeSystemDefault(Hints.FORCE_LONGITUDE_FIRST_AXIS_ORDER);
     }
 
     /**
