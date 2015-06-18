@@ -295,7 +295,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         }
 
                         // is it acceptable?
-                        if (!NetCDFUtilities.isVariableAccepted(variable, checkType)) {
+                        if (!NetCDFUtilities.isVariableAccepted(variable, checkType, dataset)) {
                             continue;
                         }
 

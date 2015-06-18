@@ -17,6 +17,7 @@
 package org.geotools.imageio.netcdf;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -52,6 +53,148 @@ import ucar.nc2.dataset.NetcdfDataset;
  */
 class NetCDFGeoreferenceManager {
 
+    class BBOXExtractor {
+
+        public void extract(Map<String, ReferencedEnvelope> boundingBoxes) throws FactoryException,
+                IOException {
+            double[] xLon = new double[2];
+            double[] yLat = new double[2];
+            byte set = 0;
+            isLonLat = false;
+            for (CoordinateVariable<?> cv : getCoordinatesVariables()) {
+                if (cv.isNumeric()) {
+
+                    // is it lat or lon (or geoY or geoX)?
+                    AxisType type = cv.getAxisType();
+                    switch (type) {
+                    case GeoY:
+                    case Lat:
+                        getCoordinate(cv, yLat);
+                        if (yLat[1] > yLat[0]) {
+                            setNeedsFlipping(true);
+                        } else {
+                            setNeedsFlipping(false);
+                        }
+                        set++;
+                        break;
+                    case GeoX:
+                    case Lon:
+                        getCoordinate(cv, xLon);
+                        set++;
+                        break;
+                    default:
+                        break;
+                    }
+                    switch (type) {
+                    case Lat:
+                    case Lon:
+                        isLonLat = true;
+                    default:
+                        break;
+                    }
+                }
+                if (set == 2) {
+                    break;
+                }
+            }
+            // create the envelope
+            if (set != 2) {
+                throw new IllegalStateException("Unable to create envelope for this dataset");
+            }
+            CoordinateReferenceSystem crs = NetCDFCRSUtilities.WGS84;
+            // Looks for Projection definition
+            if (!isLonLat) {
+                // First, looks for a global crs (it may have been defined
+                // as a NetCDF output write operation) to be used as fallback
+                CoordinateReferenceSystem defaultCrs = NetCDFProjection.lookForDatasetCRS(dataset);
+
+                // Then, look for a per variable CRS
+                CoordinateReferenceSystem localCrs = NetCDFProjection.lookForVariableCRS(dataset,
+                        defaultCrs);
+                if (localCrs != null) {
+                    // lookup for a custom EPSG if any
+                    crs = NetCDFProjection.lookupForCustomEpsg(localCrs);
+                }
+            }
+            ReferencedEnvelope boundingBox = new ReferencedEnvelope(xLon[0], xLon[1], yLat[0],
+                    yLat[1], crs);
+            boundingBoxes.put(NetCDFGeoreferenceManager.DEFAULT, boundingBox);
+
+        }
+    }
+    
+    class MultipleBBOXExtractor extends BBOXExtractor {
+
+        @Override
+        public void extract(Map<String, ReferencedEnvelope> boundingBoxes) throws FactoryException,
+                IOException {
+            Map<String, double[]> xLonCoords = new HashMap<String, double[]>();
+            Map<String, double[]> yLatCoords = new HashMap<String, double[]>();
+            isLonLat = false;
+            for (CoordinateVariable<?> cv : getCoordinatesVariables()) {
+                if (cv.isNumeric()) {
+                    // is it lat or lon (or geoY or geoX)?
+                    AxisType type = cv.getAxisType();
+                    switch (type) {
+                    case GeoY:
+                    case Lat:
+                        double[] yLat = new double[2];
+                        getCoordinate(cv, yLat);
+                        if (yLat[1] > yLat[0]) {
+                            setNeedsFlipping(true);
+                        } else {
+                            setNeedsFlipping(false);
+                        }
+                        yLatCoords.put(cv.getName(), yLat);
+                        break;
+                    case GeoX:
+                    case Lon:
+                        double[] xLon = new double[2];
+                        getCoordinate(cv, xLon);
+                        xLonCoords.put(cv.getName(), xLon);
+                        break;
+                    default:
+                        break;
+                    }
+                }
+            }
+            // create the envelope
+            CoordinateReferenceSystem crs = NetCDFCRSUtilities.WGS84;
+
+            // Looking for all coordinates pairs
+            List<Variable> variables = dataset.getVariables();
+            for (Variable var : variables) {
+                Attribute coordinatesAttribute = var.findAttribute(NetCDFUtilities.COORDINATES);
+                Attribute gridMappingAttribute = var.findAttribute(NetCDFUtilities.GRID_MAPPING);
+                if (gridMappingAttribute != null && coordinatesAttribute != null) {
+                    String coordinates = coordinatesAttribute.getStringValue();
+                    if (!boundingBoxes.containsKey(coordinates)) {
+
+                        Variable mapping = dataset.findVariable(null,
+                                gridMappingAttribute.getStringValue());
+                        if (mapping != null) {
+                            CoordinateReferenceSystem localCrs = NetCDFProjection
+                                    .parseProjection(mapping);
+                            if (localCrs != null) {
+                                // lookup for a custom EPSG if any
+                                crs = NetCDFProjection.lookupForCustomEpsg(localCrs);
+                            }
+                        }
+
+                        String coords[] = coordinates.split(" ");
+                        double xLon[] = xLonCoords.get(coords[0]);
+                        double yLat[] = yLatCoords.get(coords[1]);
+                        ReferencedEnvelope boundingBox = new ReferencedEnvelope(xLon[0], xLon[1],
+                                yLat[0], yLat[1], crs);
+                        boundingBoxes.put(coordinates, boundingBox);
+                    }
+
+                }
+            }
+        }
+
+    }
+    
     private final static Logger LOGGER = Logging.getLogger(NetCDFGeoreferenceManager.class
             .toString());
 
@@ -115,10 +258,6 @@ class NetCDFGeoreferenceManager {
         return coordinatesVariables.values();
     }
 
-    public void addBoundingBox(String mapName, ReferencedEnvelope boundingBox) {
-        boundingBoxes.put(mapName, boundingBox);
-    }
-
     public void dispose() {
         if (coordinatesVariables != null) {
             coordinatesVariables.clear();
@@ -132,24 +271,56 @@ class NetCDFGeoreferenceManager {
         if (!hasMultiple2Dcoords) {
             return boundingBoxes.get(DEFAULT);
         }
-        throw new UnsupportedOperationException(
-                "Multiple 2D georeferencing within same datasets still need to be supported");
+        return getEnvelopeEntry(shortName);
     }
 
     public CoordinateReferenceSystem getCoordinateReferenceSystem(String shortName) {
         if (!hasMultiple2Dcoords) {
             return boundingBoxes.get(DEFAULT).getCoordinateReferenceSystem();
+        } else {
+            ReferencedEnvelope envelope = getEnvelopeEntry(shortName);
+            if (envelope != null) {
+                return envelope.getCoordinateReferenceSystem();
+            }
         }
-        throw new UnsupportedOperationException(
-                "Multiple 2D georeferencing within same datasets still need to be supported");
+        throw new IllegalArgumentException("Unable to find a CRS for the provided variable: "
+                + shortName);
+    }
+
+    private ReferencedEnvelope getEnvelopeEntry(String shortName) {
+        // find auxiliary coordinateVariable
+        String coordinates = getCoordinatesForVariable(shortName);
+        if (coordinates != null) {
+            return boundingBoxes.get(coordinates);
+        }
+        throw new IllegalArgumentException("Unable to find an envelope for the provided variable: "
+                + shortName);
+    }
+
+    private String getCoordinatesForVariable(String shortName) {
+        Variable var = dataset.findVariable(null, shortName);
+        if (var != null) {
+            // Getting the coordinates attribute
+            Attribute attribute = var.findAttribute(NetCDFUtilities.COORDINATES);
+            if (attribute != null) {
+                return attribute.getStringValue(); 
+            }
+        }
+        return null;
     }
 
     public Collection<CoordinateVariable<?>> getCoordinatesVariables(String shortName) {
         if (!hasMultiple2Dcoords) {
             return coordinatesVariables.values();
+        } else {
+            String coordinates = getCoordinatesForVariable(shortName);
+            String coords[] = coordinates.split(" ");
+            List<CoordinateVariable<?>> coordVar = new ArrayList<CoordinateVariable<?>>();
+            for (String coord: coords) {
+                coordVar.add(coordinatesVariables.get(coord));
+            }
+            return coordVar;
         }
-        throw new UnsupportedOperationException(
-                "Multiple 2D georeferencing within same datasets still need to be supported");
     }
 
     /** 
@@ -209,73 +380,14 @@ class NetCDFGeoreferenceManager {
      * @throws FactoryException 
      */
     private void extractBBOX() throws IOException, FactoryException {
-        double [] xLon = new double[2];
-        double [] yLat = new double[2];
-        byte set = 0;
-        isLonLat = false;
-        for (CoordinateVariable<?> cv : getCoordinatesVariables()) {
-            if (cv.isNumeric()) {
-
-                // is it lat or lon (or geoY or geoX)?
-                AxisType type = cv.getAxisType();
-                switch (type) {
-                case GeoY: case Lat:
-                    getCoordinate(cv, yLat);
-                    if (yLat[1] > yLat[0]) {
-                        setNeedsFlipping(true);
-                    } else {
-                        setNeedsFlipping(false);
-                    }
-                    set++;
-                    break;
-                case GeoX:
-                case Lon:
-                    getCoordinate(cv, xLon);
-                    set++;
-                    break;
-                default:
-                    break;
-                }
-                switch (type) {
-                case Lat:
-                case Lon:
-                    isLonLat = true;
-                default:
-                    break;
-                }
-            }
-            if (set == 2) {
-                break;
-            }
-        }
-        // create the envelope
-        if (set != 2) {
-            throw new IllegalStateException("Unable to create envelope for this dataset");
-        }
-        CoordinateReferenceSystem crs = NetCDFCRSUtilities.WGS84;
-        if (!isHasMultiple2Dcoords()) {
-
-            // Looks for Projection definition
-            if (!isLonLat) {
-                // First, looks for a global crs (it may have been defined 
-                // as a NetCDF output write operation) to be used as fallback
-                CoordinateReferenceSystem defaultCrs = NetCDFProjection.lookForDatasetCRS(dataset);
-
-                // Then, look for a per variable CRS 
-                CoordinateReferenceSystem localCrs = NetCDFProjection.lookForVariableCRS(dataset, defaultCrs);
-                if (localCrs != null) {
-                    // lookup for a custom EPSG if any
-                    crs = NetCDFProjection.lookupForCustomEpsg(localCrs);
-                }
-            }
-            ReferencedEnvelope boundingBox = new ReferencedEnvelope(xLon[0], xLon[1], yLat[0], yLat[1], crs);
-            addBoundingBox(NetCDFGeoreferenceManager.DEFAULT, boundingBox);
+        BBOXExtractor extractor = null;
+        if (hasMultiple2Dcoords) {
+            extractor = new MultipleBBOXExtractor();
         } else {
-            // TODO: Support multiple Grids definition within the same file which
-            // aren't currently supported
-            throw new UnsupportedOperationException(
-                    "Multiple 2D georeferencing within same datasets still need to be supported");
+            extractor = new BBOXExtractor();
         }
+        extractor.extract(boundingBoxes);
+        
     }
 
     /**
@@ -306,7 +418,8 @@ class NetCDFGeoreferenceManager {
      */
     private void initMapping(List<CoordinateAxis> coordinateAxes) {
         // check other dimensions
-        int coordinates2D = 0;
+        int coordinates2Dx = 0;
+        int coordinates2Dy = 0;
         Map<String, String> dimensionsMap = new HashMap<String, String>();
         for (CoordinateAxis axis : coordinateAxes) {
             // get from coordinate vars
@@ -316,11 +429,12 @@ class NetCDFGeoreferenceManager {
                 AxisType axisType = cv.getAxisType();
                 switch (axisType) {
                 case GeoX:
+                case Lon:
+                    coordinates2Dx++;
+                    continue;
                 case GeoY:
                 case Lat:
-                case Lon:
-                    // TODO: Add support for multiple different bboxes within the same file
-                    coordinates2D++;
+                    coordinates2Dy++;
                     continue;
                 case Height:
                 case Pressure:
@@ -358,7 +472,10 @@ class NetCDFGeoreferenceManager {
                 }
             }
         }
-        if (coordinates2D > 2) {
+        if (coordinates2Dx + coordinates2Dy > 2) {
+            if (coordinates2Dx != coordinates2Dy) {
+                throw new IllegalArgumentException("number of x/lon coordinates must match number of y/lat coordinates");
+            }
             setHasMultiple2Dcoords(true);
         }
 
