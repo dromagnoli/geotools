@@ -407,6 +407,7 @@ public class AncillaryFileManager implements FileSetManager{
         }
         // Marshalling the indexer to XML on disk
         Marshaller marshaller = CONTEXT.createMarshaller();
+        marshaller.setProperty(Marshaller.JAXB_FORMATTED_OUTPUT, Boolean.TRUE);
         marshaller.marshal(indexer, indexerFile);
     }
 
