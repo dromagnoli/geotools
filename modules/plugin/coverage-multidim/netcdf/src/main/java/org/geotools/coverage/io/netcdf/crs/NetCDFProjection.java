@@ -410,7 +410,7 @@ public class NetCDFProjection {
     private static Ellipsoid buildEllipsoid(Variable gridMappingVariable, Unit<Length> linearUnit) {
         Number semiMajorAxis = null;
         Number semiMinorAxis = null;
-        Double inverseFlattening = Double.NEGATIVE_INFINITY;
+        Double inverseFlattening = Double.POSITIVE_INFINITY;
 
         // Preparing ellipsoid params to be sent to the NetCDFProjectionBuilder class
         // in order to get back an Ellipsoid

@@ -74,6 +74,10 @@ public class ProjectionBuilder {
     public static final EllipsoidalCS DEFAULT_ELLIPSOIDAL_CS = DefaultEllipsoidalCS.GEODETIC_2D
             .usingUnit(NonSI.DEGREE_ANGLE);
 
+    private static final double EPSILON = 1E-8d;
+
+    private static final double ZERO = 0d;
+
     static {
         Hints hints = GeoTools.getDefaultHints().clone();
 
@@ -246,7 +250,12 @@ public class ProjectionBuilder {
             semiMinor = ellipsoidParams.get(NetCDFUtilities.SEMI_MINOR);
         }
         if (ellipsoidParams.containsKey(NetCDFUtilities.INVERSE_FLATTENING)) {
-            inverseFlattening = ellipsoidParams.get(NetCDFUtilities.INVERSE_FLATTENING);
+            Number inverseF = ellipsoidParams.get(NetCDFUtilities.INVERSE_FLATTENING);
+
+            // special zero value is used by convention for spheres 
+            if (!(Math.abs(inverseF.doubleValue() - ZERO) <= EPSILON)) {
+                inverseFlattening = inverseF;
+            }
         }
         if (semiMinor != null) {
             return DefaultEllipsoid.createEllipsoid(name, semiMajor.doubleValue(),
