@@ -1,21 +1,4 @@
-/* JAI-Ext - OpenSource Java Advanced Image Extensions Library
-*    http://www.geo-solutions.it/
-*    Copyright 2014 GeoSolutions
-
-
-* Licensed under the Apache License, Version 2.0 (the "License");
-* you may not use this file except in compliance with the License.
-* You may obtain a copy of the License at
-
-* http://www.apache.org/licenses/LICENSE-2.0
-
-* Unless required by applicable law or agreed to in writing, software
-* distributed under the License is distributed on an "AS IS" BASIS,
-* WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-* See the License for the specific language governing permissions and
-* limitations under the License.
-*/
-package org.geotools.gce.geotiff;
+package org.geotools.coverage.processing.operation;
 
 import it.geosolutions.jaiext.range.Range;
 
@@ -30,7 +13,7 @@ import javax.media.jai.ROI;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.registry.RenderedRegistryMode;
 
-import org.geotools.gce.geotiff.ShadedReliefOpImage.Algorithm;
+import org.geotools.coverage.processing.operation.ShadedReliefOpImage.Algorithm;
 
 import com.sun.media.jai.util.AreaOpPropertyGenerator;
 
@@ -41,6 +24,17 @@ import com.sun.media.jai.util.AreaOpPropertyGenerator;
  */
 public class ShadedReliefDescriptor extends OperationDescriptorImpl {
 
+    public static final double DEFAULT_AZIMUTH = 315;
+
+    public static final double DEFAULT_ALTITUDE = 45;
+
+    public static final double DEFAULT_Z = 100000;
+
+    private static final double DEGREES_TO_METERS = 111120; 
+
+    public static final double DEFAULT_SCALE = DEGREES_TO_METERS;
+
+    
     /** serialVersionUID */
     private static final long serialVersionUID = 1L;
 
@@ -71,15 +65,12 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
 
     /** The parameter class types for the ShadedRelief operation. */
     private static final Class[] paramClasses = { javax.media.jai.ROI.class,
-        it.geosolutions.jaiext.range.Range.class,
-            Double.class,Double.class,Double.class,Double.class,Double.class,Double.class,
-            Algorithm.class, Boolean.class
-    };
+            it.geosolutions.jaiext.range.Range.class, Double.class, Double.class, Double.class,
+            Double.class, Double.class, Double.class, Algorithm.class, Boolean.class };
 
     /** The parameter default values for the ShadedRelief operation. */
-    private static final Object[] paramDefaults = { 
-        null, null, NO_PARAMETER_DEFAULT, NO_PARAMETER_DEFAULT, 1d,
-        1d, 45d, 315d, Algorithm.ZEVENBERGEN_THORNE_COMBINED, true};
+    private static final Object[] paramDefaults = { null, null, NO_PARAMETER_DEFAULT,
+            NO_PARAMETER_DEFAULT, 1d, 1d, DEFAULT_ALTITUDE, DEFAULT_AZIMUTH, Algorithm.ZEVENBERGEN_THORNE_COMBINED, true };
 
     /** Constructor. */
     public ShadedReliefDescriptor() {
@@ -104,10 +95,11 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
             double altitude, double azimuth, Algorithm algorithm, boolean computeEdge,    
             /*double destNoData, boolean skipNoData, */RenderingHints hints) {
         ParameterBlockJAI pb = new ParameterBlockJAI("ShadedRelief", RenderedRegistryMode.MODE_NAME);
+
         // Setting sources
         pb.setSource("source0", source0);
+
         // Setting params
-                
         pb.setParameter("roi", roi);
         pb.setParameter("nodata", nodata);
         pb.setParameter("resX", resX);

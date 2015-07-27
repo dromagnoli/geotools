@@ -1,23 +1,5 @@
-/* JAI-Ext - OpenSource Java Advanced Image Extensions Library
- *    http://www.geo-solutions.it/
- *    Copyright 2015 GeoSolutions
+package org.geotools.coverage.processing.operation;
 
-
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
-
- * http://www.apache.org/licenses/LICENSE-2.0
-
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package org.geotools.gce.geotiff;
-
-import it.geosolutions.jaiext.JAIExt;
 import it.geosolutions.jaiext.border.BorderDescriptor;
 import it.geosolutions.jaiext.range.Range;
 import it.geosolutions.jaiext.range.RangeFactory;
@@ -25,41 +7,22 @@ import it.geosolutions.jaiext.range.RangeFactory;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.RenderingHints;
-import java.awt.color.ColorSpace;
-import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.WritableRaster;
-import java.awt.image.renderable.RenderedImageFactory;
-import java.io.File;
-import java.io.IOException;
 import java.util.Arrays;
 
 import javax.media.jai.AreaOpImage;
 import javax.media.jai.BorderExtender;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.IntegerSequence;
-import javax.media.jai.JAI;
 import javax.media.jai.KernelJAI;
-import javax.media.jai.OperationDescriptor;
-import javax.media.jai.OperationRegistry;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
 import javax.media.jai.RasterAccessor;
-import javax.media.jai.RasterFactory;
 import javax.media.jai.RasterFormatTag;
-import javax.media.jai.RenderedOp;
 import javax.media.jai.iterator.RandomIter;
-import javax.media.jai.registry.RenderedRegistryMode;
-
-import org.geotools.coverage.grid.GridCoverage2D;
-import org.geotools.coverage.grid.GridCoverageFactory;
-import org.opengis.parameter.ParameterValue;
-import org.opengis.referencing.datum.PixelInCell;
-import org.opengis.referencing.operation.MathTransform;
 
 import com.sun.media.jai.util.ImageUtil;
 
@@ -71,14 +34,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
     private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
 
     private static final double SQUARED_PI_2 = Math.PI * Math.PI / 4;
-
-    private static final double DEFAULT_Z = 100000;
-
-    private static final double DEFAULT_SCALE = 111120;
-
-    private static final double DEFAULT_AZIMUTH = 315;
-
-    private static final double DEFAULT_ALTITUDE = 45;
 
     public static enum Algorithm {
         ZEVENBERGEN_THORNE {
@@ -276,7 +231,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
             // boolean skipNoData,
             double resX, double resY, double verticalExaggeration, double verticalScale,
             double altitude, double azimuth, Algorithm algorithm, boolean computeEdge) {
-        super(source, l, hints, true, null,/* EXTENDER, */1, 1, 1, 1);
+        super(source, l, hints, true, EXTENDER, 1, 1, 1, 1);
 
         maxX = minX + width - 1;
         maxY = maxY + height - 1;
@@ -631,9 +586,8 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 window[1] = interpolate(window[4], window[7]);
                 window[2] = interpolate(window[5], window[8]);
             }
-        }
+        },
 
-        ,
         TOP {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -650,9 +604,8 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 window[2] = interpolate(window[5], window[8]);
 
             }
-        }
+        },
 
-        ,
         TOP_RIGHT {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -667,9 +620,8 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 window[1] = interpolate(window[4], window[7]);
                 window[2] = interpolate(window[5], window[8]);
             }
-        }
+        },
 
-        ,
         LEFT {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -686,9 +638,8 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 window[8] = srcData[srcPixelOffset + centerScanlineOffset * 2 + i + 2];
                 window[6] = interpolate(window[7], window[8]);
             }
-        }
+        },
 
-        ,
         STANDARD {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -703,9 +654,8 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 window[7] = srcData[srcPixelOffset + centerScanlineOffset * 2 + 1];
                 window[8] = srcData[srcPixelOffset + centerScanlineOffset * 2 + 2];
             }
-        }
+        },
 
-        ,
         RIGHT {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -720,9 +670,8 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 window[7] = srcData[srcPixelOffset + centerScanlineOffset * 2 + 1];
                 window[8] = interpolate(window[7], window[6]);
             }
-        }
+        },
 
-        ,
         BOTTOM_LEFT {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -738,6 +687,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 window[8] = interpolate(window[5], window[2]);
             }
         },
+
         BOTTOM {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -754,6 +704,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
 
             }
         },
+
         BOTTOM_RIGHT {
             @Override
             public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
@@ -770,17 +721,13 @@ public class ShadedReliefOpImage extends AreaOpImage {
             }
         };
 
-        public void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
-                int centerScanlineOffset) {
-            // TODO Auto-generated method stub
-
-        }
+        abstract void setWindow(double[] window, int i, int j, int[] srcData, int srcPixelOffset,
+                int centerScanlineOffset);
 
         public final double interpolate(double a, double b) {
             return ((2 * (a)) - (b));
 
         }
-
     }
 
     protected void intLoop(RasterAccessor src, RasterAccessor dst, RandomIter roiIter,
@@ -825,233 +772,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
             srcScanlineOffset += srcScanlineStride;
             dstScanlineOffset += dstScanlineStride;
         }
-        //
-        //
-
-        // Valid data
-        // if (caseA || (caseB && roiContainsTile)) {
-        // for (int k = 0; k < dnumBands; k++) {
-        // short dstData[] = dstDataArrays[k];
-        // short srcData[] = srcDataArrays[k];
-        // int srcScanlineOffset = srcBandOffsets[k];
-        // int dstScanlineOffset = dstBandOffsets[k];
-        // for (int j = 0; j < dheight; j++) {
-        // int srcPixelOffset = srcScanlineOffset;
-        // int dstPixelOffset = dstScanlineOffset;
-        // for (int i = 0; i < dwidth; i++) {
-        // short s0 = srcData[srcPixelOffset];
-        // short s1 = srcData[srcPixelOffset + middlePixelOffset];
-        // short s2 = srcData[srcPixelOffset + rightPixelOffset];
-        // short s3 = srcData[srcPixelOffset + centerScanlineOffset];
-        // short s4 = srcData[srcPixelOffset + centerScanlineOffset
-        // + middlePixelOffset];
-        // short s5 = srcData[srcPixelOffset + centerScanlineOffset + rightPixelOffset];
-        // short s6 = srcData[srcPixelOffset + bottomScanlineOffset];
-        // short s7 = srcData[srcPixelOffset + bottomScanlineOffset
-        // + middlePixelOffset];
-        // short s8 = srcData[srcPixelOffset + bottomScanlineOffset + rightPixelOffset];
-        // float f = k0 * s0 + k1 * s1 + k2 * s2 + k3 * s3 + k4 * s4 + k5 * s5 + k6
-        // * s6 + k7 * s7 + k8 * s8;
-        //
-        // dstData[dstPixelOffset] = ImageUtil.clampRoundShort(f);
-        // srcPixelOffset += srcPixelStride;
-        // dstPixelOffset += dstPixelStride;
-        // }
-        // srcScanlineOffset += srcScanlineStride;
-        // dstScanlineOffset += dstScanlineStride;
-        // }
-        // }
-        // // ROI Check
-        // } else if (caseB) {
-        // for (int k = 0; k < dnumBands; k++) {
-        // short dstData[] = dstDataArrays[k];
-        // short srcData[] = srcDataArrays[k];
-        // int srcScanlineOffset = srcBandOffsets[k];
-        // int dstScanlineOffset = dstBandOffsets[k];
-        // for (int j = 0; j < dheight; j++) {
-        // int srcPixelOffset = srcScanlineOffset;
-        // int dstPixelOffset = dstScanlineOffset;
-        //
-        // y0 = srcY + j;
-        //
-        // for (int i = 0; i < dwidth; i++) {
-        //
-        // x0 = srcX + i;
-        //
-        // boolean inROI = false;
-        // // ROI Check
-        // for (int y = 0; y < kh && !inROI; y++) {
-        // int yI = y0 + y;
-        // for (int x = 0; x < kw && !inROI; x++) {
-        // int xI = x0 + x;
-        // if (roiBounds.contains(xI, yI) && roiIter.getSample(xI, yI, 0) > 0) {
-        // inROI = true;
-        // }
-        // }
-        // }
-        //
-        // short s0 = srcData[srcPixelOffset];
-        // short s1 = srcData[srcPixelOffset + middlePixelOffset];
-        // short s2 = srcData[srcPixelOffset + rightPixelOffset];
-        // short s3 = srcData[srcPixelOffset + centerScanlineOffset];
-        // short s4 = srcData[srcPixelOffset + centerScanlineOffset
-        // + middlePixelOffset];
-        // short s5 = srcData[srcPixelOffset + centerScanlineOffset + rightPixelOffset];
-        // short s6 = srcData[srcPixelOffset + bottomScanlineOffset];
-        // short s7 = srcData[srcPixelOffset + bottomScanlineOffset
-        // + middlePixelOffset];
-        // short s8 = srcData[srcPixelOffset + bottomScanlineOffset + rightPixelOffset];
-        // float f = k0 * s0 + k1 * s1 + k2 * s2 + k3 * s3 + k4 * s4 + k5 * s5 + k6
-        // * s6 + k7 * s7 + k8 * s8;
-        //
-        // if (inROI) {
-        // dstData[dstPixelOffset] = ImageUtil.clampRoundShort(f);
-        // } else {
-        // dstData[dstPixelOffset] = destNoDataShort;
-        // }
-        //
-        // srcPixelOffset += srcPixelStride;
-        // dstPixelOffset += dstPixelStride;
-        // }
-        // srcScanlineOffset += srcScanlineStride;
-        // dstScanlineOffset += dstScanlineStride;
-        // }
-        // }
-        // // NoData Check
-        // } else
-        // if (caseC || (hasROI && hasNoData && roiContainsTile)) {
-        // for (int k = 0; k < dnumBands; k++) {
-        // short dstData[] = dstDataArrays[k];
-        // short srcData[] = srcDataArrays[k];
-        // int srcScanlineOffset = srcBandOffsets[k];
-        // int dstScanlineOffset = dstBandOffsets[k];
-        // for (int j = 0; j < dheight; j++) {
-        // int srcPixelOffset = srcScanlineOffset;
-        // int dstPixelOffset = dstScanlineOffset;
-        // for (int i = 0; i < dwidth; i++) {
-        // short s0 = srcData[srcPixelOffset];
-        // short s1 = srcData[srcPixelOffset + middlePixelOffset];
-        // short s2 = srcData[srcPixelOffset + rightPixelOffset];
-        // short s3 = srcData[srcPixelOffset + centerScanlineOffset];
-        // short s4 = srcData[srcPixelOffset + centerScanlineOffset
-        // + middlePixelOffset];
-        // short s5 = srcData[srcPixelOffset + centerScanlineOffset + rightPixelOffset];
-        // short s6 = srcData[srcPixelOffset + bottomScanlineOffset];
-        // short s7 = srcData[srcPixelOffset + bottomScanlineOffset
-        // + middlePixelOffset];
-        // short s8 = srcData[srcPixelOffset + bottomScanlineOffset + rightPixelOffset];
-        //
-        // boolean isValid = true;
-        // // Boolean indicating NoData values
-        // boolean nod0 = noData.contains(s0);
-        // boolean nod1 = noData.contains(s1);
-        // boolean nod2 = noData.contains(s2);
-        // boolean nod3 = noData.contains(s3);
-        // boolean nod4 = noData.contains(s4);
-        // boolean nod5 = noData.contains(s5);
-        // boolean nod6 = noData.contains(s6);
-        // boolean nod7 = noData.contains(s7);
-        // boolean nod8 = noData.contains(s8);
-        // // Check if nodata must be skipped
-        // if (skipNoData) {
-        // isValid = !(nod0 || nod1 || nod2 || nod3 || nod4 || nod5 || nod6
-        // || nod7 || nod8);
-        // }
-        // // NoData Check
-        // if (isValid) {
-        // float f = k0 * (nod0 ? 0 : s0) + k1 * (nod1 ? 0 : s1) + k2
-        // * (nod2 ? 0 : s2) + k3 * (nod3 ? 0 : s3) + k4 * (nod4 ? 0 : s4)
-        // + k5 * (nod5 ? 0 : s5) + k6 * (nod6 ? 0 : s6) + k7
-        // * (nod7 ? 0 : s7) + k8 * (nod8 ? 0 : s8);
-        // // Clamping data
-        // dstData[dstPixelOffset] = ImageUtil.clampRoundShort(f);
-        // } else {
-        // dstData[dstPixelOffset] = destNoDataShort;
-        // }
-        // srcPixelOffset += srcPixelStride;
-        // dstPixelOffset += dstPixelStride;
-        // }
-        // srcScanlineOffset += srcScanlineStride;
-        // dstScanlineOffset += dstScanlineStride;
-        // }
-        // }
-        // // ROI and NoData Check
-        // } else {
-        // for (int k = 0; k < dnumBands; k++) {
-        // short dstData[] = dstDataArrays[k];
-        // short srcData[] = srcDataArrays[k];
-        // int srcScanlineOffset = srcBandOffsets[k];
-        // int dstScanlineOffset = dstBandOffsets[k];
-        // for (int j = 0; j < dheight; j++) {
-        // int srcPixelOffset = srcScanlineOffset;
-        // int dstPixelOffset = dstScanlineOffset;
-        //
-        // y0 = srcY + j;
-        //
-        // for (int i = 0; i < dwidth; i++) {
-        //
-        // x0 = srcX + i;
-        //
-        // boolean inROI = false;
-        // // ROI Check
-        // for (int y = 0; y < kh && !inROI; y++) {
-        // int yI = y0 + y;
-        // for (int x = 0; x < kw && !inROI; x++) {
-        // int xI = x0 + x;
-        // if (roiBounds.contains(xI, yI) && roiIter.getSample(xI, yI, 0) > 0) {
-        // inROI = true;
-        // }
-        // }
-        // }
-        //
-        // short s0 = srcData[srcPixelOffset];
-        // short s1 = srcData[srcPixelOffset + middlePixelOffset];
-        // short s2 = srcData[srcPixelOffset + rightPixelOffset];
-        // short s3 = srcData[srcPixelOffset + centerScanlineOffset];
-        // short s4 = srcData[srcPixelOffset + centerScanlineOffset
-        // + middlePixelOffset];
-        // short s5 = srcData[srcPixelOffset + centerScanlineOffset + rightPixelOffset];
-        // short s6 = srcData[srcPixelOffset + bottomScanlineOffset];
-        // short s7 = srcData[srcPixelOffset + bottomScanlineOffset
-        // + middlePixelOffset];
-        // short s8 = srcData[srcPixelOffset + bottomScanlineOffset + rightPixelOffset];
-        //
-        // boolean isValid = true;
-        // // Boolean indicating NoData values
-        // boolean nod0 = noData.contains(s0);
-        // boolean nod1 = noData.contains(s1);
-        // boolean nod2 = noData.contains(s2);
-        // boolean nod3 = noData.contains(s3);
-        // boolean nod4 = noData.contains(s4);
-        // boolean nod5 = noData.contains(s5);
-        // boolean nod6 = noData.contains(s6);
-        // boolean nod7 = noData.contains(s7);
-        // boolean nod8 = noData.contains(s8);
-        // // Check if nodata must be skipped
-        // if (skipNoData) {
-        // isValid = !(nod0 || nod1 || nod2 || nod3 || nod4 || nod5 || nod6
-        // || nod7 || nod8);
-        // }
-        // if (inROI && isValid) {
-        // float f = k0 * (nod0 ? 0 : s0) + k1 * (nod1 ? 0 : s1) + k2
-        // * (nod2 ? 0 : s2) + k3 * (nod3 ? 0 : s3) + k4 * (nod4 ? 0 : s4)
-        // + k5 * (nod5 ? 0 : s5) + k6 * (nod6 ? 0 : s6) + k7
-        // * (nod7 ? 0 : s7) + k8 * (nod8 ? 0 : s8);
-        // // Clamping data
-        // dstData[dstPixelOffset] = ImageUtil.clampRoundShort(f);
-        // } else {
-        // dstData[dstPixelOffset] = destNoDataShort;
-        // }
-        //
-        // srcPixelOffset += srcPixelStride;
-        // dstPixelOffset += dstPixelStride;
-        // }
-        // srcScanlineOffset += srcScanlineStride;
-        // dstScanlineOffset += dstScanlineStride;
-        // }
-        // }
-        // }
-
     }
 
     private Case getCase(int i, int j) {
@@ -1075,57 +795,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
             return Case.STANDARD;
         }
 
-    }
-
-    public static void main(String[] args) throws IOException {
-        JAIExt.initJAIEXT();
-        OperationRegistry registry = JAI.getDefaultInstance().getOperationRegistry();
-        OperationDescriptor op = new ShadedReliefDescriptor();
-        registry.registerDescriptor(op);
-        String descName = op.getName();
-        RenderedImageFactory rif = new ShadedReliefRIF();
-        registry.registerFactory(RenderedRegistryMode.MODE_NAME, descName,
-                "org.geotools.gce.processing", rif);
-
-        String dem = "C:\\data\\DEM\\test\\r1c2.tif";
-        final File file = new File(dem);
-        GeoTiffReader reader = new GeoTiffReader(file);
-
-        ParameterValue<String> tileSize = GeoTiffFormat.SUGGESTED_TILE_SIZE.createValue();
-        tileSize.setValue("480,600");
-
-        MathTransform g2w = reader.getOriginalGridToWorld(PixelInCell.CELL_CENTER);
-        AffineTransform af = (AffineTransform) g2w;
-        double resX = af.getScaleX();
-        double resY = af.getScaleY();
-        // GridCoverage2D gc = reader.read(new GeneralParameterValue[]{tileSize});
-        GridCoverage2D gc = reader.read(null);
-        RenderedImage ri = gc.getRenderedImage();
-        ColorModel cm = ri.getColorModel();
-        final int w = ri.getWidth();
-        final int h = ri.getHeight();
-        ColorModel cm2 = RasterFactory.createComponentColorModel(DataBuffer.TYPE_BYTE,
-                ColorSpace.getInstance(ColorSpace.CS_GRAY), false, false, cm.getTransparency());
-
-        WritableRaster wRaster = (WritableRaster) RasterFactory.createWritableRaster(
-                cm2.createCompatibleSampleModel(w, h), new Point(0, 0));
-        BufferedImage bi = new BufferedImage(cm2, wRaster, false, null);
-        ImageLayout layout = new ImageLayout(bi);
-
-        RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
-        RenderedOp finalImage = ShadedReliefDescriptor.create(ri, null, null, resX, resY,
-                DEFAULT_Z, DEFAULT_SCALE, DEFAULT_ALTITUDE, DEFAULT_AZIMUTH, Algorithm.COMBINED,
-                true, hints);
-
-        // Raster raster = ri.getData();
-
-        long time = System.currentTimeMillis();
-        GeoTiffWriter writer = new GeoTiffWriter(new File("c:/data/DEM/test/hillshadetest_"
-                + time + ".tif"));
-        GridCoverageFactory factory = new GridCoverageFactory();
-        GridCoverage2D gc2 = factory.create("hillshade", finalImage, reader.getOriginalEnvelope());
-        writer.write(gc2, null);
-        writer.dispose();
     }
 
     public static HillShadeParams prepareParams(double resX, double resY, double zetaFactor,

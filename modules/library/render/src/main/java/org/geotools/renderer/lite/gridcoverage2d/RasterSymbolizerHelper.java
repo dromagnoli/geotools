@@ -40,6 +40,7 @@ import org.geotools.styling.ChannelSelection;
 import org.geotools.styling.ColorMap;
 import org.geotools.styling.ContrastEnhancement;
 import org.geotools.styling.RasterSymbolizer;
+import org.geotools.styling.ShadedRelief;
 import org.geotools.styling.StyleVisitor;
 import org.geotools.util.SimpleInternationalString;
 import org.opengis.coverage.grid.GridCoverage;
@@ -217,7 +218,12 @@ public class RasterSymbolizerHelper extends
 		final ChannelSelectionNode csNode = new ChannelSelectionNode();
 		final ColorMapNode cmNode = new ColorMapNode(this.getHints());
 		final ContrastEnhancementNode ceNode = new ContrastEnhancementNode(this.getHints());
-		setSink(ceNode);
+		final ShadedReliefNode srNode = new ShadedReliefNode(this.getHints());
+		
+                //TODO: Think about ContrastEnhancement and shadedRelief conflicts
+                // signal them through an Exception
+		CoverageProcessingNode sink = ceNode;
+		setSink(sink);
 
 		// /////////////////////////////////////////////////////////////////////
 		//
@@ -249,6 +255,15 @@ public class RasterSymbolizerHelper extends
 		cmNode.addSink(ceNode);
 		ceNode.visit(ce);
 
+		// /////////////////////////////////////////////////////////////////////
+                //
+                // SHADED RELIEF
+                //
+                // /////////////////////////////////////////////////////////////////////
+                final ShadedRelief sr = rs.getShadedRelief();
+                srNode.addSource(cmNode);
+                cmNode.addSink(srNode);
+                srNode.visit(sr);
 		
 		 //
 		 /////////////////////////////////////////////////////////////////////
