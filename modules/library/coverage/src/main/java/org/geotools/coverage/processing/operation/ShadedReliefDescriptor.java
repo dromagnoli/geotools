@@ -55,7 +55,7 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
             };
 
     /** The parameter names for the ShadedRelief operation. */
-    private static final String[] paramNames = { "roi", "nodata", "resX","resY", 
+    private static final String[] paramNames = { "roi", "nodata", "destNoData", "resX","resY", 
         "verticalExaggeration", 
         "verticalScale",
         "altitude",
@@ -69,7 +69,7 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
             Double.class, Double.class, Double.class, Algorithm.class, Boolean.class };
 
     /** The parameter default values for the ShadedRelief operation. */
-    private static final Object[] paramDefaults = { null, null, NO_PARAMETER_DEFAULT, 0, 
+    private static final Object[] paramDefaults = { null, null, 0d, NO_PARAMETER_DEFAULT, 
             NO_PARAMETER_DEFAULT, 1d, 1d, DEFAULT_ALTITUDE, DEFAULT_AZIMUTH, Algorithm.ZEVENBERGEN_THORNE_COMBINED, true };
 
     /** Constructor. */

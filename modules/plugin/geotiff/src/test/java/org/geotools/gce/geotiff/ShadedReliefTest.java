@@ -96,7 +96,7 @@ public class ShadedReliefTest {
         ImageLayout layout = new ImageLayout(bi);
 
         RenderingHints hints = new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout);
-        RenderedOp finalImage = ShadedReliefDescriptor.create(ri, null, null, resX, resY,
+        RenderedOp finalImage = ShadedReliefDescriptor.create(ri, null, null, 0, resX, resY,
                 DEFAULT_Z, DEFAULT_SCALE, DEFAULT_ALTITUDE, DEFAULT_AZIMUTH, Algorithm.COMBINED,
                 true, hints);
 

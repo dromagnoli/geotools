@@ -384,10 +384,13 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
         double resX = af.getScaleX();
         double resY = af.getScaleY();
 
+        double[] destNoData = intensityWorker.getDestinationNoData();
+        double destinationNoData = destNoData != null ? destNoData[0] : 0;
+        
         //TODO: Handle CRS
         RenderedOp finalImage = 
                 
-                ShadedReliefDescriptor.create(ri, null, null, resX, resY,
+                ShadedReliefDescriptor.create(ri, intensityWorker.getROI(), intensityWorker.getNoData(), destinationNoData, resX, resY,
                 reliefFactor, ShadedReliefDescriptor.DEFAULT_SCALE, ShadedReliefDescriptor.DEFAULT_ALTITUDE, ShadedReliefDescriptor.DEFAULT_AZIMUTH, Algorithm.ZEVENBERGEN_THORNE_COMBINED,
                 true, newHints);
         intensityWorker.setImage(finalImage);
