@@ -11,7 +11,11 @@ import java.awt.image.DataBuffer;
 import java.awt.image.Raster;
 import java.awt.image.RenderedImage;
 import java.awt.image.WritableRaster;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Arrays;
+import java.util.Properties;
 
 import javax.media.jai.AreaOpImage;
 import javax.media.jai.BorderExtender;
@@ -27,6 +31,8 @@ import javax.media.jai.iterator.RandomIter;
 import com.sun.media.jai.util.ImageUtil;
 
 public class ShadedReliefOpImage extends AreaOpImage {
+
+    private static String DEBUG_PATH = System.getProperty("org.geotools.shadedrelief.debugProperties");
 
     private static final BorderExtender EXTENDER = BorderExtender
             .createInstance(BorderExtender.BORDER_ZERO);
@@ -176,15 +182,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
     /** ROI element */
     protected ROI roi;
 
-    /** Boolean indicating that no roi and no data check must be done */
-    protected final boolean caseA;
-
-    /** Boolean indicating that only roi check must be done */
-    protected final boolean caseB;
-
-    /** Boolean indicating that only no data check must be done */
-    protected final boolean caseC;
-
     /** ROI bounds as a Shape */
     protected final Rectangle roiBounds;
 
@@ -206,13 +203,9 @@ public class ShadedReliefOpImage extends AreaOpImage {
     /** Destination No Data value for Double sources */
     protected double destNoDataDouble;
 
-    // protected boolean skipNoData;
-
     protected RenderedImage extendedIMG;
 
     protected Rectangle destBounds;
-
-    protected KernelJAI kernel;
 
     private double noDataDouble;
 
@@ -226,9 +219,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
 
     public ShadedReliefOpImage(RenderedImage source, RenderingHints hints, ImageLayout l,
             ROI roi,
-            Range noData,
-            // double destinationNoData,
-            // boolean skipNoData,
+            Range noData, double destinationNoData,
             double resX, double resY, double verticalExaggeration, double verticalScale,
             double altitude, double azimuth, Algorithm algorithm, boolean computeEdge) {
         super(source, l, hints, true, EXTENDER, 1, 1, 1, 1);
@@ -253,59 +244,44 @@ public class ShadedReliefOpImage extends AreaOpImage {
             hasNoData = true;
             this.noData = noData;
             this.noDataDouble = noData.getMin().doubleValue();
-            // this.skipNoData = skipNoData;
         } else {
             hasNoData = false;
-            // this.skipNoData = false;
         }
 
-        this.params = prepareParams(resX, resY, verticalExaggeration, verticalScale, altitude,
-                azimuth, algorithm);
-        this.algorithm = algorithm;
-
-        // Getting datatype
+     // Getting datatype
         int dataType = source.getSampleModel().getDataType();
 
-        // // Destination No Data value is clamped to the image data type
-        // this.destNoDataDouble = destinationNoData;
-        // switch (dataType) {
-        // case DataBuffer.TYPE_BYTE:
-        // this.destNoDataByte = ImageUtil.clampRoundByte(destinationNoData);
-        // break;
-        // case DataBuffer.TYPE_USHORT:
-        // this.destNoDataShort = ImageUtil.clampRoundUShort(destinationNoData);
-        // break;
-        // case DataBuffer.TYPE_SHORT:
-        // this.destNoDataShort = ImageUtil.clampRoundShort(destinationNoData);
-        // break;
-        // case DataBuffer.TYPE_INT:
-        // this.destNoDataInt = ImageUtil.clampRoundInt(destinationNoData);
-        // break;
-        // case DataBuffer.TYPE_FLOAT:
-        // this.destNoDataFloat = ImageUtil.clampFloat(destinationNoData);
-        // break;
-        // case DataBuffer.TYPE_DOUBLE:
-        // break;
-        // default:
-        // throw new IllegalArgumentException("Wrong image data type");
-        // }
+        // Destination No Data value is clamped to the image data type
+        this.destNoDataDouble = destinationNoData;
+        switch (dataType) {
+        case DataBuffer.TYPE_BYTE:
+            this.destNoDataByte = ImageUtil.clampRoundByte(destinationNoData);
+            break;
+        case DataBuffer.TYPE_USHORT:
+            this.destNoDataShort = ImageUtil.clampRoundUShort(destinationNoData);
+            break;
+        case DataBuffer.TYPE_SHORT:
+            this.destNoDataShort = ImageUtil.clampRoundShort(destinationNoData);
+            break;
+        case DataBuffer.TYPE_INT:
+            this.destNoDataInt = ImageUtil.clampRoundInt(destinationNoData);
+            break;
+        case DataBuffer.TYPE_FLOAT:
+            this.destNoDataFloat = ImageUtil.clampFloat(destinationNoData);
+            break;
+        case DataBuffer.TYPE_DOUBLE:
+            break;
+        default:
+            throw new IllegalArgumentException("Wrong image data type");
+        }
 
-        // Definition of the possible cases that can be found
-        // caseA = no ROI nor No Data
-        // caseB = ROI present but No Data not present
-        // caseC = No Data present but ROI not present
-        // Last case not defined = both ROI and No Data are present
-        caseA = !hasNoData && !hasROI;
-        caseB = !hasNoData && hasROI;
-        caseC = hasNoData && !hasROI;
-
-        // if (hasNoData && dataType == DataBuffer.TYPE_BYTE) {
-        // initBooleanNoDataTable();
-        // }
-
+        this.algorithm = algorithm;
+        this.params = prepareParams(resX, resY, verticalExaggeration, verticalScale, altitude,
+                azimuth);
+        
         if (this.extender != null) {
             extendedIMG = BorderDescriptor.create(source, leftPadding, rightPadding, topPadding,
-                    bottomPadding, extender, RangeFactory.create(0, 0), 0d /* destinationNoData */,
+                    bottomPadding, extender, this.noData, destinationNoData ,
                     hints);
             this.destBounds = getBounds();
         } else {
@@ -340,36 +316,10 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 .getColorModel());
         RasterAccessor dst = new RasterAccessor(dest, destRect, formatTags[1], getColorModel());
 
-        // ROI fields
-        // ROI roiTile = null;
-
         RandomIter roiIter = null;
-
         boolean roiContainsTile = false;
         boolean roiDisjointTile = false;
 
-        // ROI check
-        // if (hasROI) {
-        // Rectangle srcRectExpanded = mapDestRect(destRect, 0);
-        // // The tile dimension is extended for avoiding border errors
-        // srcRectExpanded.setRect(srcRectExpanded.getMinX() - 1, srcRectExpanded.getMinY() - 1,
-        // srcRectExpanded.getWidth() + 2, srcRectExpanded.getHeight() + 2);
-        // roiTile = roi.intersect(new ROIShape(srcRectExpanded));
-        //
-        // if (!roiBounds.intersects(srcRectExpanded)) {
-        // roiDisjointTile = true;
-        // } else {
-        // roiContainsTile = roiTile.contains(srcRectExpanded);
-        // if (!roiContainsTile) {
-        // if (!roiTile.intersects(srcRectExpanded)) {
-        // roiDisjointTile = true;
-        // } else {
-        // PlanarImage roiIMG = getImage();
-        // roiIter = RandomIterFactory.create(roiIMG, null, TILE_CACHED, ARRAY_CALC);
-        // }
-        // }
-        // }
-        // }
 
         if (!hasROI || !roiDisjointTile) {
             switch (dst.getDataType()) {
@@ -570,6 +520,18 @@ public class ShadedReliefOpImage extends AreaOpImage {
         return img;
     }
 
+    class DataContainer {
+        int[] srcDataInt;
+        short[] srcDataShort;
+        boolean hasNoData;
+        Range noData;
+        double noDataDouble;
+        int dataType;
+        
+    }
+    
+    
+    
     static enum Case {
         TOP_LEFT {
             @Override
@@ -725,9 +687,11 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 int centerScanlineOffset);
 
         public final double interpolate(double a, double b) {
-            return ((2 * (a)) - (b));
+            return (hasNoData && (noData.contains(a) || noData.contains(b)) ? noDataDouble : (2 * (a))
+                    - (b));
 
         }
+
     }
 
     protected void intLoop(RasterAccessor src, RasterAccessor dst, RandomIter roiIter,
@@ -797,9 +761,53 @@ public class ShadedReliefOpImage extends AreaOpImage {
 
     }
 
-    public static HillShadeParams prepareParams(double resX, double resY, double zetaFactor,
-            double scale, double altitude, double azimuth, Algorithm algorithm) {
+    private HillShadeParams prepareParams(double resX, double resY, double zetaFactor,
+            double scale, double altitude, double azimuth) {
 
+        if (DEBUG_PATH != null) {
+            File file = new File(DEBUG_PATH);
+            if (file.exists() && file.canRead()) {
+                FileInputStream fis = null;
+                try {
+                    fis = new FileInputStream(file);
+                    Properties prop = new Properties();
+                    prop.load(fis);
+                    String scaleS = prop.getProperty("scale");
+                    if (scaleS != null) {
+                        scale = Double.parseDouble(scaleS);
+                    }
+                    String altitudeS = prop.getProperty("altitude");
+                    if (altitudeS != null) {
+                        altitude = Double.parseDouble(altitudeS);
+                    }
+                    String azimuthS = prop.getProperty("azimuth");
+                    if (azimuthS != null) {
+                        azimuth = Double.parseDouble(azimuthS);
+                    }
+                    String zetaS = prop.getProperty("zetaFactor");
+                    if (zetaS != null) {
+                        zetaFactor = Double.parseDouble(zetaS);
+                    }
+                    String algorithmS = prop.getProperty("algorithm");
+                    if (algorithmS != null) {
+                        algorithm = Algorithm.valueOf(algorithmS);
+                    }
+                } catch (Exception e) {
+                    // Does Nothing: we are in debug
+                } finally {
+                    if (fis != null) {
+                        try {
+                            fis.close();
+                        } catch (IOException e) {
+                            // Does nothing
+                        }
+                    }
+                    
+                }
+                
+            }
+        }
+        
         HillShadeParams params = new HillShadeParams();
         params.resY = resY;
         params.resX = resX;
@@ -815,11 +823,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
 
     }
 
-    public final double interpolate(double a, double b) {
-        return (hasNoData && (noData.contains(a) || noData.contains(b)) ? noDataDouble : (2 * (a))
-                - (b));
-
-    }
 
     static class HillShadeParams {
         double resY;
@@ -835,10 +838,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
         double cosinusOfaltitudeRadiansForZetaScaleFactor;
 
         double squaredZetaScaleFactor;
-
-        boolean isCombined;
-
-        boolean isZevenbergenThorne;
     }
 
 }

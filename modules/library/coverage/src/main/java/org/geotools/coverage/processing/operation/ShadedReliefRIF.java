@@ -33,7 +33,7 @@ public class ShadedReliefRIF implements RenderedImageFactory {
         int paramIndex = 0;
         ROI roi = (ROI) pb.getObjectParameter(paramIndex++);
         Range nodata = (Range) pb.getObjectParameter(paramIndex++);
-//        double destinationNoData = pb.getDoubleParameter(paramIndex++);
+        double destinationNoData = pb.getDoubleParameter(paramIndex++);
         double resX = pb.getDoubleParameter(paramIndex++);
         double resY = pb.getDoubleParameter(paramIndex++);
         double verticalExaggeration = pb.getDoubleParameter(paramIndex++);
@@ -43,9 +43,8 @@ public class ShadedReliefRIF implements RenderedImageFactory {
         Algorithm algorithm = (Algorithm) pb.getObjectParameter(paramIndex++);
         boolean computeEdge = (Boolean) pb.getObjectParameter(paramIndex++);
 
-        return new ShadedReliefOpImage(img, hints, l, roi, nodata,
-                resX, resY, 
-                verticalExaggeration, verticalScale, altitude,
+        return new ShadedReliefOpImage(img, hints, l, roi, nodata, destinationNoData,
+                resX, resY, verticalExaggeration, verticalScale, altitude,
                 azimuth, algorithm, computeEdge);
     }
 }

@@ -117,7 +117,11 @@ class ContrastEnhancementNode extends StyleVisitorCoverageProcessingNodeAdapter
 	/** Histogram Enhancement algorithm to use. */
 	private String type = null;
 
-	/**
+    public String getType() {
+        return type;
+    }
+
+    /**
 	 * Value we'll use for the gamma correction operation.
 	 */
 	private double gammaValue = Double.NaN;

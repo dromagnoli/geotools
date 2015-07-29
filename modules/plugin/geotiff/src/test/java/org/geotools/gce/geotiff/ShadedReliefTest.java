@@ -52,11 +52,6 @@ import org.opengis.referencing.operation.MathTransform;
 
 public class ShadedReliefTest {
 
-    private static final BorderExtender EXTENDER = BorderExtender
-            .createInstance(BorderExtender.BORDER_ZERO);
-
-    private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
-
     private static final double DEFAULT_Z = 100000;
 
     private static final double DEFAULT_SCALE = 111120;

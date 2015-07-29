@@ -220,11 +220,6 @@ public class RasterSymbolizerHelper extends
 		final ContrastEnhancementNode ceNode = new ContrastEnhancementNode(this.getHints());
 		final ShadedReliefNode srNode = new ShadedReliefNode(this.getHints());
 		
-                //TODO: Think about ContrastEnhancement and shadedRelief conflicts
-                // signal them through an Exception
-		CoverageProcessingNode sink = ceNode;
-		setSink(sink);
-
 		// /////////////////////////////////////////////////////////////////////
 		//
 		// CHANNEL SELECTION
@@ -251,8 +246,6 @@ public class RasterSymbolizerHelper extends
 		//
 		// /////////////////////////////////////////////////////////////////////
 		final ContrastEnhancement ce = rs.getContrastEnhancement();
-		ceNode.addSource(cmNode);
-		cmNode.addSink(ceNode);
 		ceNode.visit(ce);
 
 		// /////////////////////////////////////////////////////////////////////
@@ -261,10 +254,23 @@ public class RasterSymbolizerHelper extends
                 //
                 // /////////////////////////////////////////////////////////////////////
                 final ShadedRelief sr = rs.getShadedRelief();
-                srNode.addSource(cmNode);
-                cmNode.addSink(srNode);
                 srNode.visit(sr);
-		
+
+                //TODO: Think about ContrastEnhancement and shadedRelief conflicts
+                // signal them through an Exception
+                boolean applyShadedRelief = !Double.isNaN(srNode.getReliefFactor()); 
+                boolean applyContrastEnhancement = ceNode.getType() != null;
+                if ( applyShadedRelief && applyContrastEnhancement) {
+                    throw new IllegalArgumentException("ContrastEnhancement and ShadedRelief can't be applied at the same time. ");
+                }
+
+                CoverageProcessingNode sink = applyShadedRelief ? srNode : ceNode;
+                setSink(sink);
+                sink.addSource(cmNode);
+                cmNode.addSink(sink);
+
+                
+                
 		 //
 		 /////////////////////////////////////////////////////////////////////
 		 //

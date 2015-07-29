@@ -16,30 +16,33 @@
  */
 package org.geotools.renderer.lite.gridcoverage2d;
 
+import it.geosolutions.jaiext.JAIExt;
 import it.geosolutions.jaiext.range.NoDataContainer;
 import it.geosolutions.jaiext.range.Range;
 
-import java.awt.Point;
 import java.awt.RenderingHints;
 import java.awt.Transparency;
 import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
 import java.awt.image.SampleModel;
-import java.awt.image.WritableRaster;
+import java.awt.image.renderable.RenderedImageFactory;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
+import javax.imageio.ImageIO;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
+import javax.media.jai.OperationDescriptor;
+import javax.media.jai.OperationRegistry;
 import javax.media.jai.ROI;
 import javax.media.jai.RasterFactory;
 import javax.media.jai.RenderedOp;
+import javax.media.jai.registry.RenderedRegistryMode;
 
 import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
@@ -47,19 +50,17 @@ import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.coverage.processing.operation.ShadedReliefDescriptor;
 import org.geotools.coverage.processing.operation.ShadedReliefOpImage.Algorithm;
+import org.geotools.coverage.processing.operation.ShadedReliefRIF;
 import org.geotools.factory.Hints;
 import org.geotools.image.ImageWorker;
 import org.geotools.renderer.i18n.ErrorKeys;
 import org.geotools.renderer.i18n.Errors;
-import org.geotools.renderer.i18n.Vocabulary;
-import org.geotools.renderer.i18n.VocabularyKeys;
 import org.geotools.resources.coverage.CoverageUtilities;
 import org.geotools.styling.ShadedRelief;
 import org.geotools.styling.StyleVisitor;
 import org.geotools.util.SimpleInternationalString;
 import org.opengis.coverage.grid.GridCoverage;
 import org.opengis.filter.expression.Expression;
-import org.opengis.referencing.datum.PixelInCell;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.util.InternationalString;
 
@@ -71,6 +72,17 @@ import org.opengis.util.InternationalString;
  */
 class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter implements StyleVisitor,
         CoverageProcessingNode {
+
+    static {
+        JAIExt.initJAIEXT();
+        OperationRegistry registry = JAI.getDefaultInstance().getOperationRegistry();
+        OperationDescriptor op = new ShadedReliefDescriptor();
+        registry.registerDescriptor(op);
+        String descName = op.getName();
+        RenderedImageFactory rif = new ShadedReliefRIF();
+        registry.registerFactory(RenderedRegistryMode.MODE_NAME, descName,
+                "org.geotools.gce.processing", rif);
+    }
     /**
      * Minimal normalized value.
      */
@@ -83,10 +95,16 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
 
     private boolean brigthnessOnly = false;
 
-    private double reliefFactor;
+    private double reliefFactor = Double.NaN;
+
+    public double getReliefFactor() {
+        return reliefFactor;
+    }
 
     public InternationalString getName() {
-        return Vocabulary.formatInternational(VocabularyKeys.SHADED_RELIEF);
+        //TODO: Set entry from Vocabulary
+        return new SimpleInternationalString("Shaded Relief");
+//        return Vocabulary.formatInternational(VocabularyKeys.SHADED_RELIEF);
     }
 
     public void visit(final ShadedRelief sr) {
@@ -113,22 +131,17 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
         // /////////////////////////////////////////////////////////////////////
         final Expression rFactor = sr.getReliefFactor();
         if (rFactor != null) {
-            final Double factor = rFactor.evaluate(null, Double.class);
-            if (factor != null && !Double.isNaN(factor)) {
-                this.reliefFactor = factor;
+            final Number number = rFactor.evaluate(null, Double.class);
+            if (number != null) {
+                reliefFactor = number.doubleValue();
+                // check the gamma value
+                if (reliefFactor < 0)
+                    throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
+                            "reliefFactor", number));
+                if (Double.isNaN(reliefFactor) || Double.isInfinite(reliefFactor))
+                    throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
+                            "reliefFactor", number));
             }
-        }
-
-        final Number number = rFactor.evaluate(null, Double.class);
-        if (number != null) {
-            reliefFactor = number.doubleValue();
-            // check the gamma value
-            if (reliefFactor < 0)
-                throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
-                        "reliefFactor", number));
-            if (Double.isNaN(reliefFactor) || Double.isInfinite(reliefFactor))
-                throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
-                        "reliefFactor", number));
         }
 
     }
@@ -372,9 +385,12 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
         double resY = af.getScaleY();
 
         //TODO: Handle CRS
-        RenderedOp finalImage = ShadedReliefDescriptor.create(ri, null, null, resX, resY,
-                reliefFactor, ShadedReliefDescriptor.DEFAULT_SCALE, ShadedReliefDescriptor.DEFAULT_ALTITUDE, ShadedReliefDescriptor.DEFAULT_AZIMUTH, Algorithm.COMBINED,
-                true, hints);
+        RenderedOp finalImage = 
+                
+                ShadedReliefDescriptor.create(ri, null, null, resX, resY,
+                reliefFactor, ShadedReliefDescriptor.DEFAULT_SCALE, ShadedReliefDescriptor.DEFAULT_ALTITUDE, ShadedReliefDescriptor.DEFAULT_AZIMUTH, Algorithm.ZEVENBERGEN_THORNE_COMBINED,
+                true, newHints);
+        intensityWorker.setImage(finalImage);
         return finalImage;
     }
 

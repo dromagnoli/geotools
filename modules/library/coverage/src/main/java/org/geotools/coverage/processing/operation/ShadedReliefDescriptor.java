@@ -65,11 +65,11 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
 
     /** The parameter class types for the ShadedRelief operation. */
     private static final Class[] paramClasses = { javax.media.jai.ROI.class,
-            it.geosolutions.jaiext.range.Range.class, Double.class, Double.class, Double.class,
+            it.geosolutions.jaiext.range.Range.class, Double.class, Double.class, Double.class, Double.class,
             Double.class, Double.class, Double.class, Algorithm.class, Boolean.class };
 
     /** The parameter default values for the ShadedRelief operation. */
-    private static final Object[] paramDefaults = { null, null, NO_PARAMETER_DEFAULT,
+    private static final Object[] paramDefaults = { null, null, NO_PARAMETER_DEFAULT, 0, 
             NO_PARAMETER_DEFAULT, 1d, 1d, DEFAULT_ALTITUDE, DEFAULT_AZIMUTH, Algorithm.ZEVENBERGEN_THORNE_COMBINED, true };
 
     /** Constructor. */
@@ -90,10 +90,11 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
 
     public static RenderedOp create(RenderedImage source0,
             ROI roi, Range nodata,
+            double destNoData,
             double resX, double resY,
             double verticalExaggeration, double verticalScale, 
             double altitude, double azimuth, Algorithm algorithm, boolean computeEdge,    
-            /*double destNoData, boolean skipNoData, */RenderingHints hints) {
+            /*, boolean skipNoData, */RenderingHints hints) {
         ParameterBlockJAI pb = new ParameterBlockJAI("ShadedRelief", RenderedRegistryMode.MODE_NAME);
 
         // Setting sources
@@ -102,6 +103,7 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
         // Setting params
         pb.setParameter("roi", roi);
         pb.setParameter("nodata", nodata);
+        pb.setParameter("destNoData", destNoData);
         pb.setParameter("resX", resX);
         pb.setParameter("resY", resY);
         pb.setParameter("verticalExaggeration", verticalExaggeration);
