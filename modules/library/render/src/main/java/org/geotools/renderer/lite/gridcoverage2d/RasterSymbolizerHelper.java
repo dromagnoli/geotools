@@ -87,6 +87,8 @@ public class RasterSymbolizerHelper extends
 		Range nodata = CoverageUtilities.getNoDataProperty(output) != null ? CoverageUtilities.getNoDataProperty(output).getAsRange() : null;
 		ROI roiProp = CoverageUtilities.getROIProperty(output);
 		
+		
+		
 		///////////////////////////////////////////////////////////////////////
 		//
 		// We are in the more general case hence it might be that we have
@@ -260,7 +262,7 @@ public class RasterSymbolizerHelper extends
                 // signal them through an Exception
                 boolean applyShadedRelief = !Double.isNaN(srNode.getReliefFactor()); 
                 boolean applyContrastEnhancement = ceNode.getType() != null;
-                if ( applyShadedRelief && applyContrastEnhancement) {
+                if (applyShadedRelief && applyContrastEnhancement) {
                     throw new IllegalArgumentException("ContrastEnhancement and ShadedRelief can't be applied at the same time. ");
                 }
 

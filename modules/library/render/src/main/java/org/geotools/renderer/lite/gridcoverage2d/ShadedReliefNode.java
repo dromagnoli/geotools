@@ -39,6 +39,7 @@ import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 import javax.media.jai.OperationDescriptor;
 import javax.media.jai.OperationRegistry;
+import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
 import javax.media.jai.RasterFactory;
 import javax.media.jai.RenderedOp;
@@ -53,9 +54,11 @@ import org.geotools.coverage.processing.operation.ShadedReliefOpImage.Algorithm;
 import org.geotools.coverage.processing.operation.ShadedReliefRIF;
 import org.geotools.factory.Hints;
 import org.geotools.image.ImageWorker;
+import org.geotools.renderer.composite.BlendComposite;
 import org.geotools.renderer.i18n.ErrorKeys;
 import org.geotools.renderer.i18n.Errors;
 import org.geotools.resources.coverage.CoverageUtilities;
+import org.geotools.se.v1_1.bindings.BrightnessOnlyBinding;
 import org.geotools.styling.ShadedRelief;
 import org.geotools.styling.StyleVisitor;
 import org.geotools.util.SimpleInternationalString;
@@ -176,7 +179,15 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
         // /////////////////////////////////////////////////////////////////////
         final List<CoverageProcessingNode> sources = this.getSources();
         if (sources != null && !sources.isEmpty()) {
-            final GridCoverage2D source = (GridCoverage2D) getSource(0).getOutput();
+//            final GridCoverage2D source = (GridCoverage2D) getSource(0).getOutput();
+            CoverageProcessingNode nodeSource =  getSource(0);
+            CoverageProcessingNode colorMapNode = null;
+            if (nodeSource != null && nodeSource instanceof ColorMapNode && ((ColorMapNode)nodeSource).getType() != ColorMapNode.NONE) {
+                colorMapNode = nodeSource;
+                nodeSource = nodeSource.getSource(0);
+            }
+
+            final GridCoverage2D source = (GridCoverage2D) nodeSource.getOutput();
             GridCoverageRendererUtilities.ensureSourceNotNull(source, this.getName().toString());
             GridCoverage2D output;
 
@@ -208,56 +219,12 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
                     .setRenderingHints(hints).forceComponentColorModel();
             final int numbands = worker.getNumBands();
 
-            // //
-            //
-            // Save the alpha band if present, in order to put it back
-            // later in the loop. We are not going to use it anyway for
-            // the IHS conversion.
-            //
-            // //
-            RenderedImage alphaBand = null;
-            if (numbands % 2 == 0) {
-                // get the alpha band
-                alphaBand = new ImageWorker(worker.getRenderedImage()).setRenderingHints(hints)
-                        .retainLastBand().getRenderedImage();
-                // strip the alpha band from the original image
-                worker.setRenderingHints(hints).retainBands(numbands - 1);
-            }
-
-            // //
-            //
-            // Get the single band to work on, which might be the
-            // intensity for RGB(A) or the GRAY channel for Gray(A)
-            //
-            // //
             ImageWorker intensityWorker;
-            RenderedImage hChannel = null;
-            RenderedImage sChannel = null;
-            final boolean intensity;
-            RenderedImage IHS = null;
             if (numbands > 1) {
-                // convert the prepared image to IHS colorspace to work
-                // on I band
-                IHS = worker.setRenderingHints(hints).forceColorSpaceIHS().getRenderedImage();
+                throw new IllegalArgumentException("ShadedRelief can only be applied to single band images");
+            } 
 
-                // get the various singular bands
-                intensityWorker = worker.setRenderingHints(hints).retainFirstBand();
-                sChannel = new ImageWorker(IHS).setRenderingHints(hints).retainLastBand()
-                        .getRenderedImage();
-                hChannel = new ImageWorker(IHS).setRenderingHints(hints)
-                        .retainBands(new int[] { 1 }).getRenderedImage();
-                intensity = true;
-            } else {
-                // //
-                //
-                // we have only one band we don't need to go to IHS
-                //
-                // //
-                intensityWorker = worker;
-                intensity = false;
-            }
-
-            performShadedRelief(intensityWorker, source, hints);
+            performShadedRelief(worker, source, hints);
 
             // /////////////////////////////////////////////////////////////////////
             //
@@ -268,56 +235,31 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             // the alpha band.
             //
             // /////////////////////////////////////////////////////////////////////
-            if (intensity) {
 
-                // //
-                //
-                // IHS --> RGB
-                //
-                // Let's merge the modified IHS image. The message on
-                // the mailing list (see comments for this class)
-                // mentioned that it is required to pass a RenderingHing
-                // with a ImageLayout with the IHS color
-                // model.
-                //
-                // //
-                final ImageLayout imageLayout = new ImageLayout();
-                imageLayout.setColorModel(IHS.getColorModel());
-                imageLayout.setSampleModel(IHS.getSampleModel());
-                final RenderingHints rendHints = new RenderingHints(Collections.EMPTY_MAP);
-                rendHints.add(hints);
-                rendHints.add(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, imageLayout));
-
-                // merge and go to rgb again
-                intensityWorker.setRenderingHints(rendHints).addBands(
-                        new RenderedImage[] { hChannel, sChannel }, false, null);
-                intensityWorker.setRenderingHints(hints).forceColorSpaceRGB();
-            }
-
-            // //
-            //
-            // ALPHA BAND
-            //
-            // Let's merge the alpha band with the image we have rebuilt.
-            //
-            // //
-            if (alphaBand != null) {
-                final ColorModel cm = new ComponentColorModel(
-                        numbands >= 3 ? ColorSpace.getInstance(ColorSpace.CS_sRGB)
-                                : ColorSpace.getInstance(ColorSpace.CS_GRAY),
-                        numbands >= 3 ? new int[] { 8, 8, 8, 8 } : new int[] { 8, 8 }, true, false,
-                        Transparency.TRANSLUCENT, DataBuffer.TYPE_BYTE);
-                final ImageLayout imageLayout = new ImageLayout();
-                imageLayout.setColorModel(cm);
-                imageLayout.setSampleModel(cm.createCompatibleSampleModel(intensityWorker
-                        .getRenderedImage().getWidth(), intensityWorker.getRenderedImage()
-                        .getHeight()));
-                // merge and go to rgb
-                intensityWorker.setRenderingHints(hints)
-                        .setRenderingHint(JAI.KEY_IMAGE_LAYOUT, imageLayout)
-                        .addBand(alphaBand, false, true, null);
-
-            }
+//            // //
+//            //
+//            // ALPHA BAND
+//            //
+//            // Let's merge the alpha band with the image we have rebuilt.
+//            //
+//            // //
+//            if (alphaBand != null) {
+//                final ColorModel cm = new ComponentColorModel(
+//                        numbands >= 3 ? ColorSpace.getInstance(ColorSpace.CS_sRGB)
+//                                : ColorSpace.getInstance(ColorSpace.CS_GRAY),
+//                        numbands >= 3 ? new int[] { 8, 8, 8, 8 } : new int[] { 8, 8 }, true, false,
+//                        Transparency.TRANSLUCENT, DataBuffer.TYPE_BYTE);
+//                final ImageLayout imageLayout = new ImageLayout();
+//                imageLayout.setColorModel(cm);
+//                imageLayout.setSampleModel(cm.createCompatibleSampleModel(intensityWorker
+//                        .getRenderedImage().getWidth(), intensityWorker.getRenderedImage()
+//                        .getHeight()));
+//                // merge and go to rgb
+//                intensityWorker.setRenderingHints(hints)
+//                        .setRenderingHint(JAI.KEY_IMAGE_LAYOUT, imageLayout)
+//                        .addBand(alphaBand, false, true, null);
+//
+//            }
 
             // /////////////////////////////////////////////////////////////////////
             //
@@ -325,7 +267,7 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             //
             // /////////////////////////////////////////////////////////////////////
             final int numSourceBands = source.getNumSampleDimensions();
-            final RenderedImage finalImage = intensityWorker.getRenderedImage();
+            final RenderedImage finalImage = worker.getRenderedImage();
             final int numActualBands = finalImage.getSampleModel().getNumBands();
             final GridCoverageFactory factory = getCoverageFactory();
             final HashMap<Object, Object> props = new HashMap<Object, Object>();
@@ -333,16 +275,18 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
                 props.putAll(source.getProperties());
             }
             // Setting ROI and NODATA
-            if (intensityWorker.getNoData() != null) {
+            if (worker.getNoData() != null) {
                 props.put(NoDataContainer.GC_NODATA,
-                        new NoDataContainer(intensityWorker.getNoData()));
+                        new NoDataContainer(worker.getNoData()));
             }
-            if (intensityWorker.getROI() != null) {
-                props.put("GC_ROI", intensityWorker.getROI());
+            if (worker.getROI() != null) {
+                props.put("GC_ROI", worker.getROI());
             }
 
+            props.put("Compositing", finalImage);
+
             if (numActualBands == numSourceBands) {
-                final String name = "ce_coverage" + source.getName();
+                final String name = "sr_coverage" + source.getName();
                 output = factory.create(name, finalImage,
                         (GridGeometry2D) source.getGridGeometry(), source.getSampleDimensions(),
                         new GridCoverage[] { source }, props);
@@ -351,10 +295,19 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
                 final GridSampleDimension sd[] = new GridSampleDimension[numActualBands];
                 for (int i = 0; i < numActualBands; i++)
                     sd[i] = (GridSampleDimension) source.getSampleDimension(0);
-                output = factory.create("ce_coverage" + source.getName().toString(), finalImage,
+                output = factory.create("sr_coverage" + source.getName().toString(), finalImage,
                         (GridGeometry2D) source.getGridGeometry(), sd,
                         new GridCoverage[] { source }, props);
 
+            }
+            if (colorMapNode != null) {
+                GridCoverage2D mapCoverage = (GridCoverage2D) colorMapNode.getOutput();
+                if (!brigthnessOnly) {
+                    output = factory.create("sr_coverage" + source.getName().toString(), mapCoverage.getRenderedImage(),
+                            (GridGeometry2D) source.getGridGeometry(), output.getSampleDimensions(),
+                            new GridCoverage[] { output }, props); 
+                            
+                }
             }
             return output;
 

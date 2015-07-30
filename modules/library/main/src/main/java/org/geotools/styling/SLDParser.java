@@ -1579,7 +1579,7 @@ public class SLDParser {
                 childName = child.getNodeName();
             }
             if ("BrightnessOnly".equalsIgnoreCase(childName)) {
-                symbol.setBrightnessOnly(Boolean.getBoolean(getFirstChildValue(child)));
+                symbol.setBrightnessOnly(Boolean.parseBoolean(getFirstChildValue(child)));
             } else if ("ReliefFactor".equalsIgnoreCase(childName)) {
                 try {
                     final String reliefString = getFirstChildValue(child);
