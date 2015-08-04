@@ -27,6 +27,8 @@ import java.awt.geom.AffineTransform;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Rectangle2D;
 import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.ComponentColorModel;
 import java.awt.image.ImagingOpException;
 import java.awt.image.RenderedImage;
 import java.io.File;
@@ -1245,7 +1247,8 @@ public final class GridCoverageRenderer {
             // dealt with in the image preparation, and we have to make
             // sure previous vector rendering code did not leave a non solid alpha
             if (multiply) {
-                graphics.setComposite(BlendComposite.getInstance(BlendingMode.OVERLAY, 1f));
+                graphics.setComposite(BlendComposite.getInstance(BlendingMode.MULTIPLY, 1f));
+                finalImage = forceToRGB(finalImage);
             } else {
                 graphics.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER));
             }
@@ -1336,6 +1339,16 @@ public final class GridCoverageRenderer {
                 graphics.setRenderingHints(oldHints);
             }
         }
+    }
+
+    private RenderedImage forceToRGB(RenderedImage finalImage) {
+        if (finalImage != null) {
+            ColorModel cm = finalImage.getColorModel();
+            if (!(cm instanceof ComponentColorModel) || cm.getNumComponents() < 3) {
+                return new ImageWorker(finalImage).addBands(new RenderedImage[]{finalImage, finalImage, finalImage}, false, null).forceColorSpaceRGB().getRenderedImage();
+            }
+        }
+        return finalImage;
     }
 
 }

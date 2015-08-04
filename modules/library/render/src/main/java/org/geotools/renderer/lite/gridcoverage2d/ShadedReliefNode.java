@@ -58,7 +58,6 @@ import org.geotools.renderer.composite.BlendComposite;
 import org.geotools.renderer.i18n.ErrorKeys;
 import org.geotools.renderer.i18n.Errors;
 import org.geotools.resources.coverage.CoverageUtilities;
-import org.geotools.se.v1_1.bindings.BrightnessOnlyBinding;
 import org.geotools.styling.ShadedRelief;
 import org.geotools.styling.StyleVisitor;
 import org.geotools.util.SimpleInternationalString;
@@ -219,47 +218,11 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
                     .setRenderingHints(hints).forceComponentColorModel();
             final int numbands = worker.getNumBands();
 
-            ImageWorker intensityWorker;
             if (numbands > 1) {
                 throw new IllegalArgumentException("ShadedRelief can only be applied to single band images");
             } 
 
             performShadedRelief(worker, source, hints);
-
-            // /////////////////////////////////////////////////////////////////////
-            //
-            // POSTPROCESSING
-            //
-            // Take care of the intermediated image we left back. This
-            // means, handle the fact that we might have gone to IHS and
-            // the alpha band.
-            //
-            // /////////////////////////////////////////////////////////////////////
-
-//            // //
-//            //
-//            // ALPHA BAND
-//            //
-//            // Let's merge the alpha band with the image we have rebuilt.
-//            //
-//            // //
-//            if (alphaBand != null) {
-//                final ColorModel cm = new ComponentColorModel(
-//                        numbands >= 3 ? ColorSpace.getInstance(ColorSpace.CS_sRGB)
-//                                : ColorSpace.getInstance(ColorSpace.CS_GRAY),
-//                        numbands >= 3 ? new int[] { 8, 8, 8, 8 } : new int[] { 8, 8 }, true, false,
-//                        Transparency.TRANSLUCENT, DataBuffer.TYPE_BYTE);
-//                final ImageLayout imageLayout = new ImageLayout();
-//                imageLayout.setColorModel(cm);
-//                imageLayout.setSampleModel(cm.createCompatibleSampleModel(intensityWorker
-//                        .getRenderedImage().getWidth(), intensityWorker.getRenderedImage()
-//                        .getHeight()));
-//                // merge and go to rgb
-//                intensityWorker.setRenderingHints(hints)
-//                        .setRenderingHint(JAI.KEY_IMAGE_LAYOUT, imageLayout)
-//                        .addBand(alphaBand, false, true, null);
-//
-//            }
 
             // /////////////////////////////////////////////////////////////////////
             //
@@ -282,8 +245,6 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             if (worker.getROI() != null) {
                 props.put("GC_ROI", worker.getROI());
             }
-
-            props.put("Compositing", finalImage);
 
             if (numActualBands == numSourceBands) {
                 final String name = "sr_coverage" + source.getName();
@@ -319,18 +280,18 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
 
     private RenderedImage performShadedRelief(ImageWorker intensityWorker, GridCoverage2D source, Hints hints) {
         RenderedImage ri = source.getRenderedImage();
-        final int w = ri.getWidth();
-        final int h = ri.getHeight();
-        ColorModel cm2 = RasterFactory.createComponentColorModel(DataBuffer.TYPE_BYTE,
-                ColorSpace.getInstance(ColorSpace.CS_GRAY), false, false, ri.getColorModel().getTransparency());
-
-        SampleModel sm2 = cm2.createCompatibleSampleModel(w, h);
-        ImageLayout layout = new ImageLayout(ri.getMinX(), ri.getMinY(), ri.getWidth(), ri.getHeight(),
-                ri.getTileGridXOffset(), ri.getTileGridYOffset(), ri.getTileWidth(), ri.getTileHeight(),
-                sm2, cm2);
-
-        RenderingHints newHints = hints.clone(); 
-        newHints.add(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
+//        final int w = ri.getWidth();
+//        final int h = ri.getHeight();
+//        ColorModel cm2 = RasterFactory.createComponentColorModel(DataBuffer.TYPE_BYTE,
+//                ColorSpace.getInstance(ColorSpace.CS_GRAY), false, false, ri.getColorModel().getTransparency());
+//
+//        SampleModel sm2 = cm2.createCompatibleSampleModel(w, h);
+//        ImageLayout layout = new ImageLayout(ri.getMinX(), ri.getMinY(), ri.getWidth(), ri.getHeight(),
+//                ri.getTileGridXOffset(), ri.getTileGridYOffset(), ri.getTileWidth(), ri.getTileHeight(),
+//                sm2, cm2);
+//
+//        RenderingHints newHints = hints.clone(); 
+//        newHints.add(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
 
         MathTransform g2w = source.getGridGeometry().getGridToCRS();
         AffineTransform af = (AffineTransform) g2w;
@@ -339,13 +300,12 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
 
         double[] destNoData = intensityWorker.getDestinationNoData();
         double destinationNoData = destNoData != null ? destNoData[0] : 0;
-        
-        //TODO: Handle CRS
+
         RenderedOp finalImage = 
                 
                 ShadedReliefDescriptor.create(ri, intensityWorker.getROI(), intensityWorker.getNoData(), destinationNoData, resX, resY,
-                reliefFactor, ShadedReliefDescriptor.DEFAULT_SCALE, ShadedReliefDescriptor.DEFAULT_ALTITUDE, ShadedReliefDescriptor.DEFAULT_AZIMUTH, Algorithm.ZEVENBERGEN_THORNE_COMBINED,
-                true, newHints);
+                reliefFactor, ShadedReliefDescriptor.DEFAULT_SCALE, ShadedReliefDescriptor.DEFAULT_ALTITUDE, ShadedReliefDescriptor.DEFAULT_AZIMUTH, Algorithm.COMBINED,
+                true, hints);
         intensityWorker.setImage(finalImage);
         return finalImage;
     }

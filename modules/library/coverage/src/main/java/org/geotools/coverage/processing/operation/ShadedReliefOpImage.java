@@ -306,9 +306,9 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 azimuth);
         
         if (this.extender != null) {
-//            extendedIMG = BorderDescriptor.create(source, leftPadding, rightPadding, topPadding,
-//                    bottomPadding, EXTENDER, this.noData, destinationNoData ,
-//                    hints);
+            extendedIMG = BorderDescriptor.create(source, leftPadding, rightPadding, topPadding,
+                    bottomPadding, EXTENDER, this.noData, destinationNoData ,
+                    hints);
             this.destBounds = getBounds();
         } else {
             int x0 = getMinX() + leftPadding;
@@ -437,11 +437,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
         throw new UnsupportedOperationException();
     }
 
-    protected void shortLoop(RasterAccessor src, RasterAccessor dst, RandomIter roiIter,
-            boolean roiContainsTile) {
-        throw new UnsupportedOperationException();
-    }
-
     protected void floatLoop(RasterAccessor src, RasterAccessor dst, RandomIter roiIter,
             boolean roiContainsTile) {
         throw new UnsupportedOperationException();
@@ -452,121 +447,121 @@ public class ShadedReliefOpImage extends AreaOpImage {
         throw new UnsupportedOperationException();
     }
 
-//    public Raster computeTile(int tileX, int tileY) {
-//        if (!cobbleSources) {
-//            return super.computeTile(tileX, tileY);
-//        }
-//        // Special handling for Border Extender
-//
-//        /* Create a new WritableRaster to represent this tile. */
-//        Point org = new Point(tileXToX(tileX), tileYToY(tileY));
-//        WritableRaster dest = createWritableRaster(sampleModel, org);
-//
-//        /* Clip output rectangle to image bounds. */
-//        Rectangle rect = new Rectangle(org.x, org.y, sampleModel.getWidth(),
-//                sampleModel.getHeight());
-//
-//        Rectangle destRect = rect.intersection(destBounds);
-//        if ((destRect.width <= 0) || (destRect.height <= 0)) {
-//            return dest;
-//        }
-//
-//        /* account for padding in srcRectangle */
-//        PlanarImage s = getSourceImage(0);
-//        // Fix 4639755: Area operations throw exception for
-//        // destination extending beyond source bounds
-//        // The default dest image area is the same as the source
-//        // image area. However, when an ImageLayout hint is set,
-//        // this might be not true. So the destRect should be the
-//        // intersection of the provided rectangle, the destination
-//        // bounds and the source bounds.
-//        destRect = destRect.intersection(s.getBounds());
-//        Rectangle srcRect = new Rectangle(destRect);
-//        srcRect.x -= getLeftPadding();
-//        srcRect.width += getLeftPadding() + getRightPadding();
-//        srcRect.y -= getTopPadding();
-//        srcRect.height += getTopPadding() + getBottomPadding();
-//
-//        /*
-//         * The tileWidth and tileHeight of the source image may differ from this tileWidth and tileHeight.
-//         */
-//        IntegerSequence srcXSplits = new IntegerSequence();
-//        IntegerSequence srcYSplits = new IntegerSequence();
-//
-//        // there is only one source for an AreaOpImage
-//        s.getSplits(srcXSplits, srcYSplits, srcRect);
-//
-//        // Initialize new sequences of X splits.
-//        IntegerSequence xSplits = new IntegerSequence(destRect.x, destRect.x + destRect.width);
-//
-//        xSplits.insert(destRect.x);
-//        xSplits.insert(destRect.x + destRect.width);
-//
-//        srcXSplits.startEnumeration();
-//        while (srcXSplits.hasMoreElements()) {
-//            int xsplit = srcXSplits.nextElement();
-//            int lsplit = xsplit - getLeftPadding();
-//            int rsplit = xsplit + getRightPadding();
-//            xSplits.insert(lsplit);
-//            xSplits.insert(rsplit);
-//        }
-//
-//        // Initialize new sequences of Y splits.
-//        IntegerSequence ySplits = new IntegerSequence(destRect.y, destRect.y + destRect.height);
-//
-//        ySplits.insert(destRect.y);
-//        ySplits.insert(destRect.y + destRect.height);
-//
-//        srcYSplits.startEnumeration();
-//        while (srcYSplits.hasMoreElements()) {
-//            int ysplit = srcYSplits.nextElement();
-//            int tsplit = ysplit - getBottomPadding();
-//            int bsplit = ysplit + getTopPadding();
-//            ySplits.insert(tsplit);
-//            ySplits.insert(bsplit);
-//        }
-//
-//        /*
-//         * Divide destRect into sub rectangles based on the source splits, and compute each sub rectangle separately.
-//         */
-//        int x1, x2, y1, y2;
-//        Raster[] sources = new Raster[1];
-//
-//        ySplits.startEnumeration();
-//        for (y1 = ySplits.nextElement(); ySplits.hasMoreElements(); y1 = y2) {
-//            y2 = ySplits.nextElement();
-//
-//            int h = y2 - y1;
-//            int py1 = y1 - getTopPadding();
-//            int py2 = y2 + getBottomPadding();
-//            int ph = py2 - py1;
-//
-//            xSplits.startEnumeration();
-//            for (x1 = xSplits.nextElement(); xSplits.hasMoreElements(); x1 = x2) {
-//                x2 = xSplits.nextElement();
-//
-//                int w = x2 - x1;
-//                int px1 = x1 - getLeftPadding();
-//                int px2 = x2 + getRightPadding();
-//                int pw = px2 - px1;
-//
-//                // Fetch the padded src rectangle
-//                Rectangle srcSubRect = new Rectangle(px1, py1, pw, ph);
-//                sources[0] = extender != null ? extendedIMG.getData(srcSubRect) : s
-//                        .getData(srcSubRect);
-//
-//                // Make a destRectangle
-//                Rectangle dstSubRect = new Rectangle(x1, y1, w, h);
-//                computeRect(sources, dest, dstSubRect);
-//
-//                // Recycle the source tile
-//                if (s.overlapsMultipleTiles(srcSubRect)) {
-//                    recycleTile(sources[0]);
-//                }
-//            }
-//        }
-//        return dest;
-//    }
+    public Raster computeTile(int tileX, int tileY) {
+        if (!cobbleSources) {
+            return super.computeTile(tileX, tileY);
+        }
+        // Special handling for Border Extender
+
+        /* Create a new WritableRaster to represent this tile. */
+        Point org = new Point(tileXToX(tileX), tileYToY(tileY));
+        WritableRaster dest = createWritableRaster(sampleModel, org);
+
+        /* Clip output rectangle to image bounds. */
+        Rectangle rect = new Rectangle(org.x, org.y, sampleModel.getWidth(),
+                sampleModel.getHeight());
+
+        Rectangle destRect = rect.intersection(destBounds);
+        if ((destRect.width <= 0) || (destRect.height <= 0)) {
+            return dest;
+        }
+
+        /* account for padding in srcRectangle */
+        PlanarImage s = getSourceImage(0);
+        // Fix 4639755: Area operations throw exception for
+        // destination extending beyond source bounds
+        // The default dest image area is the same as the source
+        // image area. However, when an ImageLayout hint is set,
+        // this might be not true. So the destRect should be the
+        // intersection of the provided rectangle, the destination
+        // bounds and the source bounds.
+        destRect = destRect.intersection(s.getBounds());
+        Rectangle srcRect = new Rectangle(destRect);
+        srcRect.x -= getLeftPadding();
+        srcRect.width += getLeftPadding() + getRightPadding();
+        srcRect.y -= getTopPadding();
+        srcRect.height += getTopPadding() + getBottomPadding();
+
+        /*
+         * The tileWidth and tileHeight of the source image may differ from this tileWidth and tileHeight.
+         */
+        IntegerSequence srcXSplits = new IntegerSequence();
+        IntegerSequence srcYSplits = new IntegerSequence();
+
+        // there is only one source for an AreaOpImage
+        s.getSplits(srcXSplits, srcYSplits, srcRect);
+
+        // Initialize new sequences of X splits.
+        IntegerSequence xSplits = new IntegerSequence(destRect.x, destRect.x + destRect.width);
+
+        xSplits.insert(destRect.x);
+        xSplits.insert(destRect.x + destRect.width);
+
+        srcXSplits.startEnumeration();
+        while (srcXSplits.hasMoreElements()) {
+            int xsplit = srcXSplits.nextElement();
+            int lsplit = xsplit - getLeftPadding();
+            int rsplit = xsplit + getRightPadding();
+            xSplits.insert(lsplit);
+            xSplits.insert(rsplit);
+        }
+
+        // Initialize new sequences of Y splits.
+        IntegerSequence ySplits = new IntegerSequence(destRect.y, destRect.y + destRect.height);
+
+        ySplits.insert(destRect.y);
+        ySplits.insert(destRect.y + destRect.height);
+
+        srcYSplits.startEnumeration();
+        while (srcYSplits.hasMoreElements()) {
+            int ysplit = srcYSplits.nextElement();
+            int tsplit = ysplit - getBottomPadding();
+            int bsplit = ysplit + getTopPadding();
+            ySplits.insert(tsplit);
+            ySplits.insert(bsplit);
+        }
+
+        /*
+         * Divide destRect into sub rectangles based on the source splits, and compute each sub rectangle separately.
+         */
+        int x1, x2, y1, y2;
+        Raster[] sources = new Raster[1];
+
+        ySplits.startEnumeration();
+        for (y1 = ySplits.nextElement(); ySplits.hasMoreElements(); y1 = y2) {
+            y2 = ySplits.nextElement();
+
+            int h = y2 - y1;
+            int py1 = y1 - getTopPadding();
+            int py2 = y2 + getBottomPadding();
+            int ph = py2 - py1;
+
+            xSplits.startEnumeration();
+            for (x1 = xSplits.nextElement(); xSplits.hasMoreElements(); x1 = x2) {
+                x2 = xSplits.nextElement();
+
+                int w = x2 - x1;
+                int px1 = x1 - getLeftPadding();
+                int px2 = x2 + getRightPadding();
+                int pw = px2 - px1;
+
+                // Fetch the padded src rectangle
+                Rectangle srcSubRect = new Rectangle(px1, py1, pw, ph);
+                sources[0] = extender != null ? extendedIMG.getData(srcSubRect) : s
+                        .getData(srcSubRect);
+
+                // Make a destRectangle
+                Rectangle dstSubRect = new Rectangle(x1, y1, w, h);
+                computeRect(sources, dest, dstSubRect);
+
+                // Recycle the source tile
+                if (s.overlapsMultipleTiles(srcSubRect)) {
+                    recycleTile(sources[0]);
+                }
+            }
+        }
+        return dest;
+    }
 
     /**
      * This method provides a lazy initialization of the image associated to the ROI. The method uses the Double-checked locking in order to maintain
@@ -935,6 +930,62 @@ public class ShadedReliefOpImage extends AreaOpImage {
 
     }
 
+    protected void shortLoop(RasterAccessor src, RasterAccessor dst, RandomIter roiIter,
+            boolean roiContainsTile) {
+        int dwidth = dst.getWidth();
+        int dheight = dst.getHeight();
+
+        short dstDataArrays[][] = dst.getShortDataArrays();
+        int dstBandOffsets[] = dst.getBandOffsets();
+        int dstPixelStride = dst.getPixelStride();
+        int dstScanlineStride = dst.getScanlineStride();
+
+        short srcDataArrays[][] = src.getShortDataArrays();
+        int srcBandOffsets[] = src.getBandOffsets();
+        int srcPixelStride = src.getPixelStride();
+        int srcScanlineStride = src.getScanlineStride();
+
+        // precalcaculate offsets
+        int centerScanlineOffset = srcScanlineStride;
+        int dstX = dst.getX();
+        int dstY = dst.getY();
+
+        // X,Y positions
+        int x0 = 0;
+        int y0 = 0;
+        int srcX = src.getX();
+        int srcY = src.getY();
+
+        double[] window = new double[9];
+
+        short dstData[] = dstDataArrays[0];
+        short srcData[] = srcDataArrays[0];
+        int srcScanlineOffset = srcBandOffsets[0];
+        int dstScanlineOffset = dstBandOffsets[0];
+        int srcPixelOffset = srcScanlineOffset;
+        int dstPixelOffset = dstScanlineOffset;
+        double destValue = Double.NaN;
+        DataProcessor data = new DataProcessorShort(srcData, hasNoData, noData, noDataDouble, algorithm);
+        
+//        if (caseA || (caseB && roiContainsTile)) {
+            for (int j = 0; j < dheight; j++) {
+                srcPixelOffset = srcScanlineOffset;
+                dstPixelOffset = dstScanlineOffset;
+                for (int i = 0; i < dwidth; i++) {
+                    int sX = i + dstX;
+                    int sY = j + dstY;
+                    ProcessingCase currentCase = getCase(sX, sY);
+                    destValue = data.processWindow(window, i, j, srcPixelOffset, centerScanlineOffset, currentCase);
+                    dstData[dstPixelOffset] = ImageUtil.clampRoundShort(destValue);
+                    srcPixelOffset += srcPixelStride;
+                    dstPixelOffset += dstPixelStride;
+                }
+                srcScanlineOffset += srcScanlineStride;
+                dstScanlineOffset += dstScanlineStride;
+            }
+    }
+    
+    
     protected void intLoop(RasterAccessor src, RasterAccessor dst, RandomIter roiIter,
             boolean roiContainsTile) {
         int dwidth = dst.getWidth();
@@ -981,7 +1032,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
                     int sY = j + dstY;
                     ProcessingCase currentCase = getCase(sX, sY);
                     destValue = data.processWindow(window, i, j, srcPixelOffset, centerScanlineOffset, currentCase);
-                    dstData[dstPixelOffset] = ImageUtil.clampRoundInt(algorithm.getValue(window, params));
+                    dstData[dstPixelOffset] = ImageUtil.clampRoundInt(destValue);
                     srcPixelOffset += srcPixelStride;
                     dstPixelOffset += dstPixelStride;
                 }
