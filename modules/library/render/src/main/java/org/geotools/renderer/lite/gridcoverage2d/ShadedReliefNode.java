@@ -20,28 +20,17 @@ import it.geosolutions.jaiext.JAIExt;
 import it.geosolutions.jaiext.range.NoDataContainer;
 import it.geosolutions.jaiext.range.Range;
 
-import java.awt.RenderingHints;
-import java.awt.Transparency;
-import java.awt.color.ColorSpace;
 import java.awt.geom.AffineTransform;
-import java.awt.image.ColorModel;
-import java.awt.image.ComponentColorModel;
-import java.awt.image.DataBuffer;
 import java.awt.image.RenderedImage;
-import java.awt.image.SampleModel;
 import java.awt.image.renderable.RenderedImageFactory;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 
-import javax.imageio.ImageIO;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.JAI;
 import javax.media.jai.OperationDescriptor;
 import javax.media.jai.OperationRegistry;
-import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
-import javax.media.jai.RasterFactory;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.registry.RenderedRegistryMode;
 
@@ -49,12 +38,11 @@ import org.geotools.coverage.GridSampleDimension;
 import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridCoverageFactory;
 import org.geotools.coverage.grid.GridGeometry2D;
+import org.geotools.coverage.processing.operation.ShadedReliefAlgorithm;
 import org.geotools.coverage.processing.operation.ShadedReliefDescriptor;
-import org.geotools.coverage.processing.operation.ShadedReliefOpImage.Algorithm;
 import org.geotools.coverage.processing.operation.ShadedReliefRIF;
 import org.geotools.factory.Hints;
 import org.geotools.image.ImageWorker;
-import org.geotools.renderer.composite.BlendComposite;
 import org.geotools.renderer.i18n.ErrorKeys;
 import org.geotools.renderer.i18n.Errors;
 import org.geotools.resources.coverage.CoverageUtilities;
@@ -76,24 +64,20 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
         CoverageProcessingNode {
 
     static {
+        // Initialize JAIExt operations
         JAIExt.initJAIEXT();
         OperationRegistry registry = JAI.getDefaultInstance().getOperationRegistry();
         OperationDescriptor op = new ShadedReliefDescriptor();
+
+        // registering the descriptor
         registry.registerDescriptor(op);
         String descName = op.getName();
+
+        // registering the RIF
         RenderedImageFactory rif = new ShadedReliefRIF();
         registry.registerFactory(RenderedRegistryMode.MODE_NAME, descName,
                 "org.geotools.gce.processing", rif);
     }
-    /**
-     * Minimal normalized value.
-     */
-    private static final double MIN_VALUE = 0d;
-
-    /**
-     * Maximal normalized value.
-     */
-    private static final double MAX_VALUE = 1d;
 
     private boolean brigthnessOnly = false;
 
@@ -104,9 +88,7 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
     }
 
     public InternationalString getName() {
-        //TODO: Set entry from Vocabulary
         return new SimpleInternationalString("Shaded Relief");
-//        return Vocabulary.formatInternational(VocabularyKeys.SHADED_RELIEF);
     }
 
     public void visit(final ShadedRelief sr) {
@@ -137,12 +119,11 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             if (number != null) {
                 reliefFactor = number.doubleValue();
                 // check the gamma value
-                if (reliefFactor < 0)
+                if (reliefFactor < 0 || Double.isNaN(reliefFactor)
+                        || Double.isInfinite(reliefFactor)) {
                     throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
                             "reliefFactor", number));
-                if (Double.isNaN(reliefFactor) || Double.isInfinite(reliefFactor))
-                    throw new IllegalArgumentException(Errors.format(ErrorKeys.ILLEGAL_ARGUMENT_$2,
-                            "reliefFactor", number));
+                }
             }
         }
 
@@ -178,10 +159,12 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
         // /////////////////////////////////////////////////////////////////////
         final List<CoverageProcessingNode> sources = this.getSources();
         if (sources != null && !sources.isEmpty()) {
-//            final GridCoverage2D source = (GridCoverage2D) getSource(0).getOutput();
-            CoverageProcessingNode nodeSource =  getSource(0);
+            CoverageProcessingNode nodeSource = getSource(0);
             CoverageProcessingNode colorMapNode = null;
-            if (nodeSource != null && nodeSource instanceof ColorMapNode && ((ColorMapNode)nodeSource).getType() != ColorMapNode.NONE) {
+            if (nodeSource != null && nodeSource instanceof ColorMapNode
+                    && ((ColorMapNode) nodeSource).getType() != ColorMapNode.NONE) {
+
+                // If colormap is present, ShadedRelief need to be computed on previous source
                 colorMapNode = nodeSource;
                 nodeSource = nodeSource.getSource(0);
             }
@@ -200,7 +183,7 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
 
             // //
             //
-            // Get the ROI and NoData from the input coverageS
+            // Get the ROI and NoData from the input coverage
             //
             // //
             ROI roi = CoverageUtilities.getROIProperty(source);
@@ -219,8 +202,9 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             final int numbands = worker.getNumBands();
 
             if (numbands > 1) {
-                throw new IllegalArgumentException("ShadedRelief can only be applied to single band images");
-            } 
+                throw new IllegalArgumentException(
+                        "ShadedRelief can only be applied to single band images");
+            }
 
             performShadedRelief(worker, source, hints);
 
@@ -230,7 +214,8 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             //
             // /////////////////////////////////////////////////////////////////////
             final int numSourceBands = source.getNumSampleDimensions();
-            final RenderedImage finalImage = worker.getRenderedImage();
+            RenderedImage finalImage = worker.getRenderedImage();
+
             final int numActualBands = finalImage.getSampleModel().getNumBands();
             final GridCoverageFactory factory = getCoverageFactory();
             final HashMap<Object, Object> props = new HashMap<Object, Object>();
@@ -239,8 +224,7 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             }
             // Setting ROI and NODATA
             if (worker.getNoData() != null) {
-                props.put(NoDataContainer.GC_NODATA,
-                        new NoDataContainer(worker.getNoData()));
+                props.put(NoDataContainer.GC_NODATA, new NoDataContainer(worker.getNoData()));
             }
             if (worker.getROI() != null) {
                 props.put("GC_ROI", worker.getROI());
@@ -264,10 +248,15 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
             if (colorMapNode != null) {
                 GridCoverage2D mapCoverage = (GridCoverage2D) colorMapNode.getOutput();
                 if (!brigthnessOnly) {
-                    output = factory.create("sr_coverage" + source.getName().toString(), mapCoverage.getRenderedImage(),
-                            (GridGeometry2D) source.getGridGeometry(), output.getSampleDimensions(),
-                            new GridCoverage[] { output }, props); 
-                            
+                    // When brigthnessOnly is set to true I have to prepare a separated
+                    // image to be applied to the rendering and return the previous source's
+                    // output as output
+                    props.put(GridCoverageRenderer.KEY_COMPOSITING, new Compositing(finalImage));
+                    output = factory.create("sr_coverage" + source.getName().toString(),
+                            mapCoverage.getRenderedImage(),
+                            (GridGeometry2D) source.getGridGeometry(),
+                            output.getSampleDimensions(), new GridCoverage[] { output }, props);
+
                 }
             }
             return output;
@@ -278,21 +267,9 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
 
     }
 
-    private RenderedImage performShadedRelief(ImageWorker intensityWorker, GridCoverage2D source, Hints hints) {
+    private RenderedImage performShadedRelief(ImageWorker intensityWorker, GridCoverage2D source,
+            Hints hints) {
         RenderedImage ri = source.getRenderedImage();
-//        final int w = ri.getWidth();
-//        final int h = ri.getHeight();
-//        ColorModel cm2 = RasterFactory.createComponentColorModel(DataBuffer.TYPE_BYTE,
-//                ColorSpace.getInstance(ColorSpace.CS_GRAY), false, false, ri.getColorModel().getTransparency());
-//
-//        SampleModel sm2 = cm2.createCompatibleSampleModel(w, h);
-//        ImageLayout layout = new ImageLayout(ri.getMinX(), ri.getMinY(), ri.getWidth(), ri.getHeight(),
-//                ri.getTileGridXOffset(), ri.getTileGridYOffset(), ri.getTileWidth(), ri.getTileHeight(),
-//                sm2, cm2);
-//
-//        RenderingHints newHints = hints.clone(); 
-//        newHints.add(new RenderingHints(JAI.KEY_IMAGE_LAYOUT, layout));
-
         MathTransform g2w = source.getGridGeometry().getGridToCRS();
         AffineTransform af = (AffineTransform) g2w;
         double resX = af.getScaleX();
@@ -301,13 +278,11 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
         double[] destNoData = intensityWorker.getDestinationNoData();
         double destinationNoData = destNoData != null ? destNoData[0] : 0;
 
-        RenderedOp finalImage = 
-                
-                ShadedReliefDescriptor.create(ri, intensityWorker.getROI(), intensityWorker.getNoData(), destinationNoData, resX, resY,
-                reliefFactor, ShadedReliefDescriptor.DEFAULT_SCALE, ShadedReliefDescriptor.DEFAULT_ALTITUDE, ShadedReliefDescriptor.DEFAULT_AZIMUTH, Algorithm.COMBINED,
-                true, hints);
+        RenderedOp finalImage = ShadedReliefDescriptor.create(ri, intensityWorker.getROI(),
+                intensityWorker.getNoData(), destinationNoData, resX, resY, reliefFactor,
+                ShadedReliefDescriptor.DEFAULT_SCALE, ShadedReliefDescriptor.DEFAULT_ALTITUDE,
+                ShadedReliefDescriptor.DEFAULT_AZIMUTH, ShadedReliefAlgorithm.COMBINED, hints);
         intensityWorker.setImage(finalImage);
         return finalImage;
     }
-
 }

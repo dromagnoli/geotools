@@ -1,9 +1,23 @@
+/*
+ *    GeoTools - The Open Source Java GIS Toolkit
+ *    http://geotools.org
+ * 
+ *    (C) 2015, Open Source Geospatial Foundation (OSGeo)
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License as published by the Free Software Foundation;
+ *    version 2.1 of the License.
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ */
 package org.geotools.coverage.processing.operation;
 
-import it.geosolutions.jaiext.border.BorderDescriptor;
 import it.geosolutions.jaiext.iterators.RandomIterFactory;
 import it.geosolutions.jaiext.range.Range;
-import it.geosolutions.jaiext.range.RangeFactory;
 
 import java.awt.Point;
 import java.awt.Rectangle;
@@ -22,7 +36,6 @@ import javax.media.jai.AreaOpImage;
 import javax.media.jai.BorderExtender;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.IntegerSequence;
-import javax.media.jai.KernelJAI;
 import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
 import javax.media.jai.ROIShape;
@@ -30,138 +43,23 @@ import javax.media.jai.RasterAccessor;
 import javax.media.jai.RasterFormatTag;
 import javax.media.jai.iterator.RandomIter;
 
+import org.geotools.coverage.processing.operation.ShadedReliefAlgorithm.DataProcessor;
+import org.geotools.coverage.processing.operation.ShadedReliefAlgorithm.DataProcessorInt;
+import org.geotools.coverage.processing.operation.ShadedReliefAlgorithm.DataProcessorShort;
+import org.geotools.coverage.processing.operation.ShadedReliefAlgorithm.HillShadeParams;
+import org.geotools.coverage.processing.operation.ShadedReliefAlgorithm.ProcessingCase;
+import org.geotools.image.ImageWorker;
+
 import com.sun.media.jai.util.ImageUtil;
 
+/**
+ * ShadedRelief op Image
+ */
 public class ShadedReliefOpImage extends AreaOpImage {
 
-    private static String DEBUG_PATH = System.getProperty("org.geotools.shadedrelief.debugProperties");
-
+   
     private static final BorderExtender EXTENDER = BorderExtender
-            .createInstance(BorderExtender.BORDER_COPY);
-
-    private static final double DEGREES_TO_RADIANS = Math.PI / 180.0;
-
-    private static final double SQUARED_PI_2 = Math.PI * Math.PI / 4;
-
-    public static enum Algorithm {
-        ZEVENBERGEN_THORNE {
-
-            @Override
-            public double getX(double[] window) {
-                return getX2(window);
-            }
-
-            @Override
-            public double getY(double[] window) {
-                return getY2(window);
-            }
-
-            @Override
-            public double getFactor() {
-                return getZTFactor();
-            }
-        },
-        ZEVENBERGEN_THORNE_COMBINED {
-            @Override
-            public double getX(double[] window) {
-                return getX2(window);
-            }
-
-            @Override
-            public double getY(double[] window) {
-                return getY2(window);
-            }
-
-            @Override
-            public double getFactor() {
-                return getZTFactor();
-            }
-
-            @Override
-            public double refineValue(double value, double slope) {
-                return combineValue(value, slope);
-            }
-        }
-
-        ,
-        DEFAULT, COMBINED {
-
-            @Override
-            public double refineValue(double value, double slope) {
-                return combineValue(value, slope);
-            }
-
-        };
-
-        public double getFactor() {
-            return 8;
-        }
-
-        private static double getZTFactor() {
-            return 2;
-        }
-
-        private static double getX2(double[] window) {
-            return (window[3] - window[5]);
-        }
-
-        private static double getY2(double[] window) {
-            return (window[7] - window[1]);
-        }
-
-        public double getX(double[] window) {
-            return (window[3] - window[5])
-                    + ((window[0] + window[3] + window[6]) - (window[2] + +window[5] + window[8]));
-        }
-
-        public double getY(double[] window) {
-            return (window[7] - window[1])
-                    + ((window[6] + window[7] + window[8]) - (window[0] + window[1] + window[2]));
-        }
-
-        private static double combineValue(double value, double slope) {
-            // combined shading
-            value = Math.acos(value);
-
-            value = 1 - (value * Math.atan(Math.sqrt(slope)) / SQUARED_PI_2);
-            return value;
-        }
-
-        public double refineValue(double value, double slope) {
-            return value;
-        }
-
-        public float getValue(double[] window, HillShadeParams params) {
-
-            double x, y, aspect, square, value;
-            double xNum = getX(window);
-            double yNum = getY(window);
-
-            // Computing slope
-            x = xNum / params.resX;
-            y = yNum / params.resY;
-            square = (x * x) + (y * y);
-            double slope = square * params.squaredZetaScaleFactor;
-
-            // Computing aspect
-            aspect = Math.atan2(y, x);
-
-            // Computing shading
-            value = (params.sineOfAltitude - (params.cosinusOfaltitudeRadiansForZetaScaleFactor
-                    * Math.sqrt(square) * Math.sin(aspect - params.azimuthRadians)))
-                    / Math.sqrt(1 + slope);
-
-            value = refineValue(value, slope);
-            if (value <= 0.0) {
-                value = 1.0;
-            } else {
-                value = 1.0 + (254.0 * value);
-            }
-
-            return (float) value;
-        }
-
-    }
+            .createInstance(BorderExtender.BORDER_REFLECT);
 
     /** Constant indicating that the inner random iterators must pre-calculate an array of the image positions */
     public static final boolean ARRAY_CALC = true;
@@ -224,16 +122,18 @@ public class ShadedReliefOpImage extends AreaOpImage {
 
     private int maxY;
 
-    private Algorithm algorithm;
+    private ShadedReliefAlgorithm algorithm;
 
-    private HillShadeParams params;
+    private ShadedReliefAlgorithm.HillShadeParams params;
+
+    private final static int FIXED_PADDING = 1;
 
     public ShadedReliefOpImage(RenderedImage source, RenderingHints hints, ImageLayout l,
             ROI roi,
             Range noData, double destinationNoData,
             double resX, double resY, double verticalExaggeration, double verticalScale,
-            double altitude, double azimuth, Algorithm algorithm, boolean computeEdge) {
-        super(source, l, hints, true, EXTENDER, 1, 1, 1, 1);
+            double altitude, double azimuth, ShadedReliefAlgorithm algorithm) {
+        super(source, l, hints, true, EXTENDER, FIXED_PADDING, FIXED_PADDING, FIXED_PADDING, FIXED_PADDING);
 
         maxX = minX + width - 1;
         maxY = maxY + height - 1;
@@ -274,8 +174,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
         caseA = !hasNoData && !hasROI;
         caseB = !hasNoData && hasROI;
         caseC = hasNoData && !hasROI;
-        
-
 
         // Destination No Data value is clamped to the image data type
         this.destNoDataDouble = destinationNoData;
@@ -302,13 +200,14 @@ public class ShadedReliefOpImage extends AreaOpImage {
         }
 
         this.algorithm = algorithm;
-        this.params = prepareParams(resX, resY, verticalExaggeration, verticalScale, altitude,
-                azimuth);
-        
+        this.params = new HillShadeParams(resX, resY, verticalExaggeration, verticalScale, altitude,
+                azimuth, algorithm);
+
         if (this.extender != null) {
-            extendedIMG = BorderDescriptor.create(source, leftPadding, rightPadding, topPadding,
-                    bottomPadding, EXTENDER, this.noData, destinationNoData ,
-                    hints);
+            ImageWorker worker = new ImageWorker(source).setRenderingHints(hints)
+                    .setNoData(this.noData)
+                    .border(leftPadding, rightPadding, topPadding, bottomPadding, extender);
+            extendedIMG = worker.getRenderedImage();
             this.destBounds = getBounds();
         } else {
             int x0 = getMinX() + leftPadding;
@@ -337,7 +236,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
             lut[i] = result;
         }
     }
-    
+
     /**
      * Performs the computation on a specified rectangle. The sources are cobbled.
      * 
@@ -356,7 +255,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
                 .getColorModel());
         RasterAccessor dst = new RasterAccessor(dest, destRect, formatTags[1], getColorModel());
 
-     // ROI fields
+        // ROI fields
         ROI roiTile = null;
 
         RandomIter roiIter = null;
@@ -582,353 +481,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
         return img;
     }
 
-    abstract class DataProcessor {
-        boolean hasNoData;
-        Range noData;
-        double noDataDouble;
-        Algorithm algorithm;
-
-        public DataProcessor (boolean hasNoData, Range noData, double noDataDouble, Algorithm algorithm) {
-            this.hasNoData = hasNoData;
-            this.noData = noData;
-            this.noDataDouble = noDataDouble;
-            this.algorithm = algorithm;
-        }
-
-        abstract double getValue(int index);
-
-        public final double interpolate(double a, double b) {
-            return (2 * (a)) - (b);
-        }
-
-        public final double interpolateNoData(double a, double b) {
-            return (hasNoData && (noData.contains(a) || noData.contains(b))) ? noDataDouble : interpolate(a,b);
-        }
-
-        public double processWindow(double[] window, int i, int j, int srcPixelOffset,
-                int centerScanlineOffset, ProcessingCase processingCase) {
-            processingCase.setWindow(window, i, j, srcPixelOffset, centerScanlineOffset, this);
-            return algorithm.getValue(window, params);
-        }
-
-        public double processWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                int centerScanlineOffset, ProcessingCase processingCase) {
-            processingCase.setWindowNoData(window, i, j, srcPixelOffset, centerScanlineOffset, this);
-            if (isNoData(window[4])) {
-                // Return NaN in case of noData. The caller will properly remap it to the proper noDataType
-                return Double.NaN;
-            } else {
-                for (int index = 0; index < 9; index++) {
-                    if (isNoData(window[index])) {
-                        window[index] = window[4];
-                    }
-                }
-                return algorithm.getValue(window, params);
-            }
-        }
-
-        private boolean isNoData(double value) {
-            return (hasNoData && noData.contains(value));
-        }
-    }
-
-    class DataProcessorShort extends DataProcessor {
-        short[] srcDataShort;
-        public DataProcessorShort(short[] data, boolean hasNoData, Range noData, double noDataDouble, Algorithm algorithm) {
-            super(hasNoData, noData, noDataDouble, algorithm);
-            srcDataShort = data;
-        }
-        @Override
-        double getValue(int index) {
-            return srcDataShort[index];
-        }
-    }
-
-    class DataProcessorInt extends DataProcessor {
-        int[] srcDataInt;
-        public DataProcessorInt(int[] data, boolean hasNoData, Range noData, double noDataDouble, Algorithm algorithm) {
-            super(hasNoData, noData, noDataDouble, algorithm);
-            srcDataInt = data;
-        }
-        @Override
-        double getValue(int index) {
-            return srcDataInt[index];
-        }
-    }
-
-
-    static enum ProcessingCase {
-        TOP_LEFT {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-
-                window[3] = data.getValue(centerScanlineOffset + 1);
-                window[4] = data.getValue(centerScanlineOffset + 1);
-                window[5] = data.getValue(centerScanlineOffset + 2);
-                window[6] = data.getValue(centerScanlineOffset * 2 + 1);
-                window[7] = data.getValue(centerScanlineOffset * 2 + 1);
-                window[8] = data.getValue(centerScanlineOffset * 2 + 2);
-                window[0] = data.interpolate(window[3], window[6]);
-                window[1] = data.interpolate(window[4], window[7]);
-                window[2] = data.interpolate(window[5], window[8]);
-            }
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-
-                window[3] = data.getValue(centerScanlineOffset + 1);
-                window[4] = data.getValue(centerScanlineOffset + 1);
-                window[5] = data.getValue(centerScanlineOffset + 2);
-                window[6] = data.getValue(centerScanlineOffset * 2 + 1);
-                window[7] = data.getValue(centerScanlineOffset * 2 + 1);
-                window[8] = data.getValue(centerScanlineOffset * 2 + 2);
-                window[0] = data.interpolateNoData(window[3], window[6]);
-                window[1] = data.interpolateNoData(window[4], window[7]);
-                window[2] = data.interpolateNoData(window[5], window[8]);
-            }
-        },
-
-        TOP {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-
-                window[3] = data.getValue(centerScanlineOffset + i);
-                window[4] = data.getValue(centerScanlineOffset + i + 1);
-                window[5] = data.getValue(centerScanlineOffset + i + 2);
-                window[6] = data.getValue(centerScanlineOffset * 2 + i);
-                window[7] = data.getValue(centerScanlineOffset * 2 + i + 1);
-                window[8] = data.getValue(centerScanlineOffset * 2 + i + 2);
-                window[0] = data.interpolate(window[3], window[6]);
-                window[1] = data.interpolate(window[4], window[7]);
-                window[2] = data.interpolate(window[5], window[8]);
-
-            }
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-
-                window[3] = data.getValue(centerScanlineOffset + i);
-                window[4] = data.getValue(centerScanlineOffset + i + 1);
-                window[5] = data.getValue(centerScanlineOffset + i + 2);
-                window[6] = data.getValue(centerScanlineOffset * 2 + i);
-                window[7] = data.getValue(centerScanlineOffset * 2 + i + 1);
-                window[8] = data.getValue(centerScanlineOffset * 2 + i + 2);
-                window[0] = data.interpolateNoData(window[3], window[6]);
-                window[1] = data.interpolateNoData(window[4], window[7]);
-                window[2] = data.interpolateNoData(window[5], window[8]);
-
-            }
-        },
-
-        TOP_RIGHT {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[3] = data.getValue(centerScanlineOffset + i);
-                window[4] = data.getValue(centerScanlineOffset + i + 1);
-                window[5] = data.getValue(centerScanlineOffset + i + 1);
-                window[6] = data.getValue(centerScanlineOffset * 2 + i);
-                window[7] = data.getValue(centerScanlineOffset * 2 + i + 1);
-                window[8] = data.getValue(centerScanlineOffset * 2 + i + 1);
-                window[0] = data.interpolate(window[3], window[6]);
-                window[1] = data.interpolate(window[4], window[7]);
-                window[2] = data.interpolate(window[5], window[8]);
-            }
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[3] = data.getValue(centerScanlineOffset + i);
-                window[4] = data.getValue(centerScanlineOffset + i + 1);
-                window[5] = data.getValue(centerScanlineOffset + i + 1);
-                window[6] = data.getValue(centerScanlineOffset * 2 + i);
-                window[7] = data.getValue(centerScanlineOffset * 2 + i + 1);
-                window[8] = data.getValue(centerScanlineOffset * 2 + i + 1);
-                window[0] = data.interpolateNoData(window[3], window[6]);
-                window[1] = data.interpolateNoData(window[4], window[7]);
-                window[2] = data.interpolateNoData(window[5], window[8]);
-            }
-        },
-
-        LEFT {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[1] = data.getValue(srcPixelOffset + i + 1);
-                window[2] = data.getValue(srcPixelOffset + i + 2);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + i + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + i + 2);
-                window[7] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + i + 1);
-                window[8] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + i + 2);
-                window[0] = data.interpolate(window[1], window[2]);
-                window[3] = data.interpolate(window[4], window[5]);
-                window[6] = data.interpolate(window[7], window[8]);
-            }
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[1] = data.getValue(srcPixelOffset + i + 1);
-                window[2] = data.getValue(srcPixelOffset + i + 2);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + i + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + i + 2);
-                window[7] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + i + 1);
-                window[8] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + i + 2);
-                window[0] = data.interpolateNoData(window[1], window[2]);
-                window[3] = data.interpolateNoData(window[4], window[5]);
-                window[6] = data.interpolateNoData(window[7], window[8]);
-            }
-        },
-
-        STANDARD {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[2] = data.getValue(srcPixelOffset + 2);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + 2);
-                window[6] = data.getValue(srcPixelOffset + centerScanlineOffset * 2);
-                window[7] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + 1);
-                window[8] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + 2);
-            }
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                setWindow(window, i,j, srcPixelOffset, centerScanlineOffset, data);
-            }
-        },
-
-        RIGHT {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[6] = data.getValue(srcPixelOffset + centerScanlineOffset * 2);
-                window[7] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + 1);
-                window[2] = data.interpolate(window[1], window[0]);
-                window[5] = data.interpolate(window[4], window[3]);
-                window[8] = data.interpolate(window[7], window[6]);
-            }
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[6] = data.getValue(srcPixelOffset + centerScanlineOffset * 2);
-                window[7] = data.getValue(srcPixelOffset + centerScanlineOffset * 2 + 1);
-                window[2] = data.interpolateNoData(window[1], window[0]);
-                window[5] = data.interpolateNoData(window[4], window[3]);
-                window[8] = data.interpolateNoData(window[7], window[6]);
-            }
-        },
-
-        BOTTOM_LEFT {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset + 1);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[2] = data.getValue(srcPixelOffset + 2);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + 2);
-                window[6] = data.interpolate(window[3], window[0]);
-                window[7] = data.interpolate(window[4], window[1]);
-                window[8] = data.interpolate(window[5], window[2]);
-            }
-            
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset + 1);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[2] = data.getValue(srcPixelOffset + 2);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + 2);
-                window[6] = data.interpolateNoData(window[3], window[0]);
-                window[7] = data.interpolateNoData(window[4], window[1]);
-                window[8] = data.interpolateNoData(window[5], window[2]);
-            }
-        },
-
-        BOTTOM {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[2] = data.getValue(srcPixelOffset + 2);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + 2);
-                window[6] = data.interpolate(window[3], window[0]);
-                window[7] = data.interpolate(window[4], window[1]);
-                window[8] = data.interpolate(window[5], window[2]);
-
-            }
-
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[2] = data.getValue(srcPixelOffset + 2);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + 2);
-                window[6] = data.interpolateNoData(window[3], window[0]);
-                window[7] = data.interpolateNoData(window[4], window[1]);
-                window[8] = data.interpolateNoData(window[5], window[2]);
-
-            }
-        },
-
-        BOTTOM_RIGHT {
-            @Override
-            public void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[2] = data.getValue(srcPixelOffset + 1);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[6] = data.interpolate(window[3], window[0]);
-                window[7] = data.interpolate(window[4], window[1]);
-                window[8] = data.interpolate(window[5], window[2]);
-            }
-
-            @Override
-            public void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                    int centerScanlineOffset, DataProcessor data) {
-                window[0] = data.getValue(srcPixelOffset);
-                window[1] = data.getValue(srcPixelOffset + 1);
-                window[2] = data.getValue(srcPixelOffset + 1);
-                window[3] = data.getValue(srcPixelOffset + centerScanlineOffset);
-                window[4] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[5] = data.getValue(srcPixelOffset + centerScanlineOffset + 1);
-                window[6] = data.interpolateNoData(window[3], window[0]);
-                window[7] = data.interpolateNoData(window[4], window[1]);
-                window[8] = data.interpolateNoData(window[5], window[2]);
-            }
-        };
-
-        abstract void setWindow(double[] window, int i, int j, int srcPixelOffset,
-                int centerScanlineOffset, DataProcessor data);
-
-        abstract void setWindowNoData(double[] window, int i, int j, int srcPixelOffset,
-                int centerScanlineOffset, DataProcessor data);
-
-    }
+    
 
     protected void shortLoop(RasterAccessor src, RasterAccessor dst, RandomIter roiIter,
             boolean roiContainsTile) {
@@ -965,7 +518,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
         int srcPixelOffset = srcScanlineOffset;
         int dstPixelOffset = dstScanlineOffset;
         double destValue = Double.NaN;
-        DataProcessor data = new DataProcessorShort(srcData, hasNoData, noData, noDataDouble, algorithm);
+        DataProcessor data = new DataProcessorShort(srcData, hasNoData, noData, noDataDouble, algorithm, params);
         
 //        if (caseA || (caseB && roiContainsTile)) {
             for (int j = 0; j < dheight; j++) {
@@ -1021,7 +574,7 @@ public class ShadedReliefOpImage extends AreaOpImage {
         int srcPixelOffset = srcScanlineOffset;
         int dstPixelOffset = dstScanlineOffset;
         double destValue = Double.NaN;
-        DataProcessor data = new DataProcessorInt(srcData, hasNoData, noData, noDataDouble, algorithm);
+        DataProcessor data = new DataProcessorInt(srcData, hasNoData, noData, noDataDouble, algorithm, params);
         
 //        if (caseA || (caseB && roiContainsTile)) {
             for (int j = 0; j < dheight; j++) {
@@ -1160,84 +713,6 @@ public class ShadedReliefOpImage extends AreaOpImage {
             return ProcessingCase.STANDARD;
         }
 
-    }
-
-    private HillShadeParams prepareParams(double resX, double resY, double zetaFactor,
-            double scale, double altitude, double azimuth) {
-
-        if (DEBUG_PATH != null) {
-            File file = new File(DEBUG_PATH);
-            if (file.exists() && file.canRead()) {
-                FileInputStream fis = null;
-                try {
-                    fis = new FileInputStream(file);
-                    Properties prop = new Properties();
-                    prop.load(fis);
-                    String scaleS = prop.getProperty("scale");
-                    if (scaleS != null) {
-                        scale = Double.parseDouble(scaleS);
-                    }
-                    String altitudeS = prop.getProperty("altitude");
-                    if (altitudeS != null) {
-                        altitude = Double.parseDouble(altitudeS);
-                    }
-                    String azimuthS = prop.getProperty("azimuth");
-                    if (azimuthS != null) {
-                        azimuth = Double.parseDouble(azimuthS);
-                    }
-                    String zetaS = prop.getProperty("zetaFactor");
-                    if (zetaS != null) {
-                        zetaFactor = Double.parseDouble(zetaS);
-                    }
-                    String algorithmS = prop.getProperty("algorithm");
-                    if (algorithmS != null) {
-                        algorithm = Algorithm.valueOf(algorithmS);
-                    }
-                } catch (Exception e) {
-                    // Does Nothing: we are in debug
-                } finally {
-                    if (fis != null) {
-                        try {
-                            fis.close();
-                        } catch (IOException e) {
-                            // Does nothing
-                        }
-                    }
-                    
-                }
-                
-            }
-        }
-        
-        HillShadeParams params = new HillShadeParams();
-        params.resY = resY;
-        params.resX = resX;
-        params.sineOfAltitude = Math.sin(altitude * DEGREES_TO_RADIANS);
-        params.azimuthRadians = azimuth * DEGREES_TO_RADIANS;
-
-        double zetaScaleFactor = zetaFactor / (algorithm.getFactor() * scale);
-        params.zetaScaleFactor = zetaScaleFactor;
-        params.cosinusOfaltitudeRadiansForZetaScaleFactor = Math.cos(altitude * DEGREES_TO_RADIANS)
-                * zetaScaleFactor;
-        params.squaredZetaScaleFactor = zetaScaleFactor * zetaScaleFactor;
-        return params;
-
-    }
-
-    static class HillShadeParams {
-        double resY;
-
-        double resX;
-
-        double sineOfAltitude;
-
-        double azimuthRadians;
-
-        double zetaScaleFactor;
-
-        double cosinusOfaltitudeRadiansForZetaScaleFactor;
-
-        double squaredZetaScaleFactor;
     }
 
 }

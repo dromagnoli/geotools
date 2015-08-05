@@ -1,3 +1,19 @@
+/*
+ *    GeoTools - The Open Source Java GIS Toolkit
+ *    http://geotools.org
+ * 
+ *    (C) 2015, Open Source Geospatial Foundation (OSGeo)
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License as published by the Free Software Foundation;
+ *    version 2.1 of the License.
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ */
 package org.geotools.coverage.processing.operation;
 
 import it.geosolutions.jaiext.range.Range;
@@ -12,8 +28,6 @@ import javax.media.jai.PropertyGenerator;
 import javax.media.jai.ROI;
 import javax.media.jai.RenderedOp;
 import javax.media.jai.registry.RenderedRegistryMode;
-
-import org.geotools.coverage.processing.operation.ShadedReliefOpImage.Algorithm;
 
 import com.sun.media.jai.util.AreaOpPropertyGenerator;
 
@@ -47,30 +61,29 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
             { "Vendor", "it.geosolutions.jaiext" },
             { "Description", "desc" },
             { "Version", "ver" },
-//            { "arg0Desc", JaiI18N.getString("ShadedReliefDescriptor1") },
-//            { "arg1Desc", JaiI18N.getString("ShadedReliefDescriptor2") },
-//            { "arg2Desc", JaiI18N.getString("ShadedReliefDescriptor3") },
-//            { "arg3Desc", JaiI18N.getString("ShadedReliefDescriptor4") },
-//            { "arg5Desc", JaiI18N.getString("ShadedReliefDescriptor5") }
-            };
+            { "arg0Desc", "Region of interest" },
+            { "arg1Desc", "Input NoData" },
+            { "arg2Desc", "Destination NoData" },
+            { "arg3Desc", "X resolution" },
+            { "arg4Desc", "Y resolution" },
+            { "arg5Desc", "Vertical Exaggeration" },
+            { "arg6Desc", "elevation unit to 2D unit scale ratio" },
+            { "arg7Desc", "altitude" },
+            { "arg8Desc", "azimuth" },
+            { "arg9Desc", "algorithm" }};
 
     /** The parameter names for the ShadedRelief operation. */
     private static final String[] paramNames = { "roi", "nodata", "destNoData", "resX","resY", 
-        "verticalExaggeration", 
-        "verticalScale",
-        "altitude",
-        "azimuth",
-        "algorithm",
-        "computeEdge"};
+        "verticalExaggeration", "verticalScale", "altitude", "azimuth", "algorithm" };
 
     /** The parameter class types for the ShadedRelief operation. */
     private static final Class[] paramClasses = { javax.media.jai.ROI.class,
             it.geosolutions.jaiext.range.Range.class, Double.class, Double.class, Double.class, Double.class,
-            Double.class, Double.class, Double.class, Algorithm.class, Boolean.class };
+            Double.class, Double.class, Double.class, ShadedReliefAlgorithm.class};
 
     /** The parameter default values for the ShadedRelief operation. */
     private static final Object[] paramDefaults = { null, null, 0d, NO_PARAMETER_DEFAULT, 
-            NO_PARAMETER_DEFAULT, 1d, 1d, DEFAULT_ALTITUDE, DEFAULT_AZIMUTH, Algorithm.ZEVENBERGEN_THORNE_COMBINED, true };
+            NO_PARAMETER_DEFAULT, 1d, 1d, DEFAULT_ALTITUDE, DEFAULT_AZIMUTH, ShadedReliefAlgorithm.ZEVENBERGEN_THORNE_COMBINED };
 
     /** Constructor. */
     public ShadedReliefDescriptor() {
@@ -88,13 +101,10 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
         return pg;
     }
 
-    public static RenderedOp create(RenderedImage source0,
-            ROI roi, Range nodata,
-            double destNoData,
-            double resX, double resY,
-            double verticalExaggeration, double verticalScale, 
-            double altitude, double azimuth, Algorithm algorithm, boolean computeEdge,    
-            /*, boolean skipNoData, */RenderingHints hints) {
+    public static RenderedOp create(RenderedImage source0, ROI roi, Range nodata,
+            double destNoData, double resX, double resY, double verticalExaggeration,
+            double verticalScale, double altitude, double azimuth, ShadedReliefAlgorithm algorithm,
+            RenderingHints hints) {
         ParameterBlockJAI pb = new ParameterBlockJAI("ShadedRelief", RenderedRegistryMode.MODE_NAME);
 
         // Setting sources
@@ -111,7 +121,6 @@ public class ShadedReliefDescriptor extends OperationDescriptorImpl {
         pb.setParameter("altitude", altitude);
         pb.setParameter("azimuth", azimuth);
         pb.setParameter("algorithm", algorithm);
-        pb.setParameter("computeEdge", computeEdge);
 
         return JAI.create("ShadedRelief", pb, hints);
     }

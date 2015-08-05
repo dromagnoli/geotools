@@ -18,6 +18,11 @@ package org.geotools.renderer.lite.gridcoverage2d;
 
 import it.geosolutions.jaiext.range.Range;
 
+import java.awt.Graphics2D;
+import java.awt.geom.AffineTransform;
+import java.awt.image.BufferedImage;
+import java.awt.image.ColorModel;
+import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
 import java.awt.image.RenderedImage;
@@ -25,6 +30,7 @@ import java.awt.image.SampleModel;
 import java.util.HashMap;
 import java.util.Map;
 
+import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
 
 import org.geotools.coverage.GridSampleDimension;
@@ -33,6 +39,9 @@ import org.geotools.coverage.grid.GridCoverage2D;
 import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.factory.Hints;
 import org.geotools.image.ImageWorker;
+import org.geotools.referencing.operation.transform.AffineTransform2D;
+import org.geotools.renderer.composite.BlendComposite;
+import org.geotools.renderer.composite.BlendComposite.BlendingMode;
 import org.geotools.renderer.i18n.Vocabulary;
 import org.geotools.renderer.i18n.VocabularyKeys;
 import org.geotools.resources.coverage.CoverageUtilities;
@@ -59,6 +68,9 @@ import org.opengis.filter.expression.Expression;
 public class RasterSymbolizerHelper extends
 		SubchainStyleVisitorCoverageProcessingAdapter implements StyleVisitor {
 
+    /** IDENTITY */
+    private static final AffineTransform IDENTITY = AffineTransform2D.getTranslateInstance(0, 0);
+    
 	private float opacity=1.0F;
 
         /**
@@ -150,26 +162,19 @@ public class RasterSymbolizerHelper extends
 	            ImageWorker ow = new ImageWorker(outputImage);
 	            ow.setROI(roiProp);
 	            ow.setNoData(nodata);
-	            finalImage = ow.applyOpacity(opacity).getRenderedImage();
+	            outputImage = ow.applyOpacity(opacity).getRenderedImage();
 	            
-	            numBands=finalImage.getSampleModel().getNumBands();
+	            numBands=outputImage.getSampleModel().getNumBands();
 	            sd= new GridSampleDimension[numBands];
 	            for(int i=0;i<numBands;i++) {
-	                sd[i]= new GridSampleDimension(TypeMap.getColorInterpretation(finalImage.getColorModel(), i).name());
+	                sd[i]= new GridSampleDimension(TypeMap.getColorInterpretation(outputImage.getColorModel(), i).name());
 	            }
 
 	            CoverageUtilities.setNoDataProperty(properties, ow.getNoData());
 	            CoverageUtilities.setROIProperty(properties, ow.getROI());
                     // create a new grid coverage but preserve as much input as possible
-                    return this.getCoverageFactory().create(
-                            output.getName(), 
-                            finalImage,
-                            (GridGeometry2D) output.getGridGeometry(), 
-                            sd, 
-                            new GridCoverage[] { output },
-                            properties);	            
 	        }  
-	        
+
 		//create a new grid coverage but preserve as much input as possible
 		return this.getCoverageFactory().create(
 		        output.getName(), 

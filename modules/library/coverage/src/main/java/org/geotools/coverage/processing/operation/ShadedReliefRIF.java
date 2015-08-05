@@ -1,3 +1,19 @@
+/*
+ *    GeoTools - The Open Source Java GIS Toolkit
+ *    http://geotools.org
+ * 
+ *    (C) 2015, Open Source Geospatial Foundation (OSGeo)
+ *
+ *    This library is free software; you can redistribute it and/or
+ *    modify it under the terms of the GNU Lesser General Public
+ *    License as published by the Free Software Foundation;
+ *    version 2.1 of the License.
+ *
+ *    This library is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *    Lesser General Public License for more details.
+ */
 package org.geotools.coverage.processing.operation;
 
 import it.geosolutions.jaiext.range.Range;
@@ -7,11 +23,8 @@ import java.awt.image.RenderedImage;
 import java.awt.image.renderable.ParameterBlock;
 import java.awt.image.renderable.RenderedImageFactory;
 
-import javax.media.jai.BorderExtender;
 import javax.media.jai.ImageLayout;
 import javax.media.jai.ROI;
-
-import org.geotools.coverage.processing.operation.ShadedReliefOpImage.Algorithm;
 
 import com.sun.media.jai.opimage.RIFUtil;
 
@@ -24,12 +37,11 @@ public class ShadedReliefRIF implements RenderedImageFactory {
     public RenderedImage create(ParameterBlock pb, RenderingHints hints) {
         // Getting the Layout
         ImageLayout l = RIFUtil.getImageLayoutHint(hints);
-        // Get BorderExtender from renderHints if present.
-        BorderExtender extender = RIFUtil.getBorderExtenderHint(hints);
+
         // Getting source
         RenderedImage img = pb.getRenderedSource(0);
-        // Getting parameters
 
+        // Getting parameters
         int paramIndex = 0;
         ROI roi = (ROI) pb.getObjectParameter(paramIndex++);
         Range nodata = (Range) pb.getObjectParameter(paramIndex++);
@@ -40,11 +52,10 @@ public class ShadedReliefRIF implements RenderedImageFactory {
         double verticalScale = pb.getDoubleParameter(paramIndex++);
         double altitude = pb.getDoubleParameter(paramIndex++);
         double azimuth = pb.getDoubleParameter(paramIndex++);
-        Algorithm algorithm = (Algorithm) pb.getObjectParameter(paramIndex++);
-        boolean computeEdge = (Boolean) pb.getObjectParameter(paramIndex++);
+        ShadedReliefAlgorithm algorithm = (ShadedReliefAlgorithm) pb.getObjectParameter(paramIndex++);
 
         return new ShadedReliefOpImage(img, hints, l, roi, nodata, destinationNoData,
                 resX, resY, verticalExaggeration, verticalScale, altitude,
-                azimuth, algorithm, computeEdge);
+                azimuth, algorithm);
     }
 }
