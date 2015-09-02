@@ -590,7 +590,7 @@ class ShadedReliefOpImage extends AreaOpImage {
         double destValue = Double.NaN;
         DataProcessor data = new DataProcessorShort(srcData, hasNoData, noData, noDataDouble, params);
         
-//        if (caseA || (caseB && roiContainsTile)) {
+        if (caseA || (caseB && roiContainsTile)) {
             for (int j = 0; j < dheight; j++) {
                 srcPixelOffset = srcScanlineOffset;
                 dstPixelOffset = dstScanlineOffset;
@@ -606,105 +606,105 @@ class ShadedReliefOpImage extends AreaOpImage {
                 srcScanlineOffset += srcScanlineStride;
                 dstScanlineOffset += dstScanlineStride;
             }
-////             ROI Check
-//        } else if (caseB) {
-//            for (int j = 0; j < dheight; j++) {
-//                y0 = srcY + j;
-//
-//                for (int i = 0; i < dwidth; i++) {
-//                    x0 = srcX + i;
-//
-//                    boolean inROI = false;
-//                    // ROI Check
-//                    for (int y = 0; y < 3 ; y++) {
-//                        int yI = y0 + y;
-//                        for (int x = 0; x < 3 ; x++) {
-//                            int xI = x0 + x;
-//                            if (roiBounds.contains(xI, yI) && roiIter.getSample(xI, yI, 0) > 0) {
-//                                inROI = true;
-//                                roiMask[x+(3*y)] = true;
-//                            } else {
-//                                roiMask[x+(3*y)] = false; 
-//                            }
-//                        }
-//                    }
-//
-//                    if (inROI) {
-//                        int sX = i + dstX;
-//                        int sY = j + dstY;
-//                        ProcessingCase currentCase = getCase(sX, sY);
-//                        destValue = data.processWindowRoi(window, i, srcPixelOffset,
-//                                centerScanlineOffset, currentCase, roiMask);
-//                        dstData[dstPixelOffset] = ImageUtil.clampRoundShort(destValue);
-//                    } else {
-//                        dstData[dstPixelOffset] = destNoDataShort;
-//                    }
-//
-//                    srcPixelOffset += srcPixelStride;
-//                    dstPixelOffset += dstPixelStride;
-//                }
-//                srcScanlineOffset += srcScanlineStride;
-//                dstScanlineOffset += dstScanlineStride;
-//
-//            }
-//        // NoData Check
-//    } else if (caseC || (hasROI && hasNoData && roiContainsTile)) {
-//        for (int j = 0; j < dheight; j++) {
-//            srcPixelOffset = srcScanlineOffset;
-//            dstPixelOffset = dstScanlineOffset;
-//            for (int i = 0; i < dwidth; i++) {
-//                int sX = i + dstX;
-//                int sY = j + dstY;
-//                ProcessingCase currentCase = getCase(sX, sY);
-//                destValue = data.processWindowNoData(window, i, srcPixelOffset, centerScanlineOffset, currentCase);
-//                dstData[dstPixelOffset] = Double.isNaN(destValue) ? destNoDataShort : ImageUtil.clampRoundShort(destValue);
-//                srcPixelOffset += srcPixelStride;
-//                dstPixelOffset += dstPixelStride;
-//            }
-//            srcScanlineOffset += srcScanlineStride;
-//            dstScanlineOffset += dstScanlineStride;
-//        }
-//        // ROI and No Data Check
-//    } else {
-//        for (int j = 0; j < dheight; j++) {
-//            y0 = srcY + j;
-//
-//            for (int i = 0; i < dwidth; i++) {
-//                x0 = srcX + i;
-//                boolean inROI = false;
-//                // ROI Check
-//                for (int y = 0; y < 3 ; y++) {
-//                    int yI = y0 + y;
-//                    for (int x = 0; x < 3 ; x++) {
-//                        int xI = x0 + x;
-//                        if (roiBounds.contains(xI, yI) && roiIter.getSample(xI, yI, 0) > 0) {
-//                            inROI = true;
-//                            roiMask[x+(3*y)] = true;
-//                        } else {
-//                            roiMask[x+(3*y)] = false; 
-//                        }
-//                    }
-//                }
-//
-//                if (inROI) {
-//                    int sX = i + dstX;
-//                    int sY = j + dstY;
-//                    ProcessingCase currentCase = getCase(sX, sY);
-//                    destValue = data.processWindowRoiNoData(window, i, srcPixelOffset,
-//                            centerScanlineOffset, currentCase, roiMask);
-//                    dstData[dstPixelOffset] = Double.isNaN(destValue) ? destNoDataShort : ImageUtil.clampRoundShort(destValue);
-//                } else {
-//                    dstData[dstPixelOffset] = destNoDataShort;
-//                }
-//
-//                srcPixelOffset += srcPixelStride;
-//                dstPixelOffset += dstPixelStride;
-//            }
-//            srcScanlineOffset += srcScanlineStride;
-//            dstScanlineOffset += dstScanlineStride;
-//
-//        }
-//    }
+//             ROI Check
+        } else if (caseB) {
+            for (int j = 0; j < dheight; j++) {
+                y0 = srcY + j;
+
+                for (int i = 0; i < dwidth; i++) {
+                    x0 = srcX + i;
+
+                    boolean inROI = false;
+                    // ROI Check
+                    for (int y = 0; y < 3 ; y++) {
+                        int yI = y0 + y;
+                        for (int x = 0; x < 3 ; x++) {
+                            int xI = x0 + x;
+                            if (roiBounds.contains(xI, yI) && roiIter.getSample(xI, yI, 0) > 0) {
+                                inROI = true;
+                                roiMask[x+(3*y)] = true;
+                            } else {
+                                roiMask[x+(3*y)] = false; 
+                            }
+                        }
+                    }
+
+                    if (inROI) {
+                        int sX = i + dstX;
+                        int sY = j + dstY;
+                        ProcessingCase currentCase = getCase(sX, sY);
+                        destValue = data.processWindowRoi(window, i, srcPixelOffset,
+                                centerScanlineOffset, currentCase, roiMask);
+                        dstData[dstPixelOffset] = ImageUtil.clampRoundShort(destValue);
+                    } else {
+                        dstData[dstPixelOffset] = destNoDataShort;
+                    }
+
+                    srcPixelOffset += srcPixelStride;
+                    dstPixelOffset += dstPixelStride;
+                }
+                srcScanlineOffset += srcScanlineStride;
+                dstScanlineOffset += dstScanlineStride;
+
+            }
+        // NoData Check
+    } else if (caseC || (hasROI && hasNoData && roiContainsTile)) {
+        for (int j = 0; j < dheight; j++) {
+            srcPixelOffset = srcScanlineOffset;
+            dstPixelOffset = dstScanlineOffset;
+            for (int i = 0; i < dwidth; i++) {
+                int sX = i + dstX;
+                int sY = j + dstY;
+                ProcessingCase currentCase = getCase(sX, sY);
+                destValue = data.processWindowNoData(window, i, srcPixelOffset, centerScanlineOffset, currentCase);
+                dstData[dstPixelOffset] = Double.isNaN(destValue) ? destNoDataShort : ImageUtil.clampRoundShort(destValue);
+                srcPixelOffset += srcPixelStride;
+                dstPixelOffset += dstPixelStride;
+            }
+            srcScanlineOffset += srcScanlineStride;
+            dstScanlineOffset += dstScanlineStride;
+        }
+        // ROI and No Data Check
+    } else {
+        for (int j = 0; j < dheight; j++) {
+            y0 = srcY + j;
+
+            for (int i = 0; i < dwidth; i++) {
+                x0 = srcX + i;
+                boolean inROI = false;
+                // ROI Check
+                for (int y = 0; y < 3 ; y++) {
+                    int yI = y0 + y;
+                    for (int x = 0; x < 3 ; x++) {
+                        int xI = x0 + x;
+                        if (roiBounds.contains(xI, yI) && roiIter.getSample(xI, yI, 0) > 0) {
+                            inROI = true;
+                            roiMask[x+(3*y)] = true;
+                        } else {
+                            roiMask[x+(3*y)] = false; 
+                        }
+                    }
+                }
+
+                if (inROI) {
+                    int sX = i + dstX;
+                    int sY = j + dstY;
+                    ProcessingCase currentCase = getCase(sX, sY);
+                    destValue = data.processWindowRoiNoData(window, i, srcPixelOffset,
+                            centerScanlineOffset, currentCase, roiMask);
+                    dstData[dstPixelOffset] = Double.isNaN(destValue) ? destNoDataShort : ImageUtil.clampRoundShort(destValue);
+                } else {
+                    dstData[dstPixelOffset] = destNoDataShort;
+                }
+
+                srcPixelOffset += srcPixelStride;
+                dstPixelOffset += dstPixelStride;
+            }
+            srcScanlineOffset += srcScanlineStride;
+            dstScanlineOffset += dstScanlineStride;
+
+        }
+    }
     }
     
     private ProcessingCase getCase(int i, int j) {

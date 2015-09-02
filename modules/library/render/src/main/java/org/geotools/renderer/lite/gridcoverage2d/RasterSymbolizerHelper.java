@@ -18,11 +18,7 @@ package org.geotools.renderer.lite.gridcoverage2d;
 
 import it.geosolutions.jaiext.range.Range;
 
-import java.awt.Graphics2D;
 import java.awt.geom.AffineTransform;
-import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.ComponentColorModel;
 import java.awt.image.DataBuffer;
 import java.awt.image.IndexColorModel;
 import java.awt.image.RenderedImage;
@@ -30,7 +26,6 @@ import java.awt.image.SampleModel;
 import java.util.HashMap;
 import java.util.Map;
 
-import javax.media.jai.PlanarImage;
 import javax.media.jai.ROI;
 
 import org.geotools.coverage.GridSampleDimension;
@@ -40,8 +35,6 @@ import org.geotools.coverage.grid.GridGeometry2D;
 import org.geotools.factory.Hints;
 import org.geotools.image.ImageWorker;
 import org.geotools.referencing.operation.transform.AffineTransform2D;
-import org.geotools.renderer.composite.BlendComposite;
-import org.geotools.renderer.composite.BlendComposite.BlendingMode;
 import org.geotools.renderer.i18n.Vocabulary;
 import org.geotools.renderer.i18n.VocabularyKeys;
 import org.geotools.resources.coverage.CoverageUtilities;

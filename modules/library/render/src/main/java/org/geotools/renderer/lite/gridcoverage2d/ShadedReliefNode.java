@@ -61,7 +61,7 @@ class ShadedReliefNode extends StyleVisitorCoverageProcessingNodeAdapter impleme
 
     static {
         // Initialize JAIExt operations
-        JAIExt.initJAIEXT();
+        ImageWorker.isJaiExtEnabled();
         OperationRegistry registry = JAI.getDefaultInstance().getOperationRegistry();
         OperationDescriptor op = new ShadedReliefDescriptor();
 
