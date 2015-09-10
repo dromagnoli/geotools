@@ -87,6 +87,7 @@ import ucar.ma2.InvalidRangeException;
 import ucar.ma2.Range;
 import ucar.ma2.Section;
 import ucar.nc2.Attribute;
+import ucar.nc2.Group;
 import ucar.nc2.Variable;
 import ucar.nc2.dataset.CoordinateAxis;
 import ucar.nc2.dataset.CoordinateSystem;
@@ -124,6 +125,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     /** Summary set of coverage names */
     // TODO this duplicates the info that we have in the AncillaryFileManager
     final List<Name> coverages = new ArrayList<Name>();
+
+    boolean useBestGroup = false;
 
     @Override
     public List<Name> getCoveragesNames() {
@@ -226,9 +229,9 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
      * @return the variable or <code>null</code>.
      */
     public Variable getVariableByName( final String varName ) {
-        final List<Variable> varList = dataset.getVariables();
+        final List<Variable> varList = useBestGroup ? dataset.findGroup(NetCDFUtilities.BEST).getVariables() : dataset.getVariables();
         for( Variable var : varList ) {
-            if (var.getFullName().equals(varName))
+            if (var.getShortName().equals(varName))
                 return var;
         }
         return null;
@@ -277,7 +280,9 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
             DataStoreConfiguration datastoreConfig = ancillaryFileManager.getDatastoreConfiguration();
             boolean isShared = datastoreConfig.isShared();
             initCatalog(datastoreConfig);
-            final List<Variable> variables = dataset.getVariables();
+            Group best = dataset.findGroup(NetCDFUtilities.BEST); 
+            useBestGroup = best != null;
+            final List<Variable> variables = useBestGroup ? best.getVariables() : dataset.getVariables();
             if (variables != null) {
 
                 // cycle on all variables to get parse them
@@ -287,7 +292,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         
                         // get the name
                         // check if it is filtered or not
-                        String varName = variable.getFullName();
+                        String varName = variable.getShortName();
                         if (!ancillaryFileManager.acceptsVariable(varName)) {
                             continue;
                         }
@@ -907,10 +912,10 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         // check other dimensions
         for (CoordinateAxis axis:cs.getCoordinateAxes()) {
             // get from coordinate vars
-            final CoordinateVariable<?> cv = georeferencing.getCoordinateVariable(axis.getFullName()); 
+            final CoordinateVariable<?> cv = georeferencing.getCoordinateVariable(axis.getShortName()); 
             if (cv == null) { 
                 if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine("Unable to find a coordinate variable for " + axis.getFullName());
+                    LOGGER.fine("Unable to find a coordinate variable for " + axis.getShortName());
                 }
                 continue;
             }

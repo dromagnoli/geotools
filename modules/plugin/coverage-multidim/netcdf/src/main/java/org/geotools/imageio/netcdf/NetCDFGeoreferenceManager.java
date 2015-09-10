@@ -19,6 +19,7 @@ package org.geotools.imageio.netcdf;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,9 +35,11 @@ import org.geotools.util.logging.Logging;
 import org.opengis.referencing.FactoryException;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
 
+import ucar.nc2.Group;
 import ucar.nc2.constants.AxisType;
 import ucar.nc2.dataset.CoordinateAxis;
 import ucar.nc2.dataset.CoordinateAxis1D;
+import ucar.nc2.dataset.CoordinateSystem;
 import ucar.nc2.dataset.NetcdfDataset;
 
 /**
@@ -167,24 +170,42 @@ class NetCDFGeoreferenceManager {
     private void extractCoordinatesVariable() {
         // get the coordinate variables
         Map<String, CoordinateVariable<?>> coordinates = new HashMap<String, CoordinateVariable<?>>();
-        for (CoordinateAxis axis : dataset.getCoordinateAxes()) {
-            if (axis instanceof CoordinateAxis1D && axis.getAxisType() != null && !"reftime".equalsIgnoreCase(axis.getFullName())) {
-                coordinates.put(axis.getFullName(), CoordinateVariable.create((CoordinateAxis1D)axis));
+        Group best = dataset.findGroup("Best");
+        Set<CoordinateAxis> axes =  new HashSet<CoordinateAxis>();
+        if (best != null) {
+            List<CoordinateSystem> systems = dataset.getCoordinateSystems();
+            for (CoordinateSystem system : systems) {
+                String systemName = system.getName();
+                if (systemName.startsWith("Best")) {
+                    for (CoordinateAxis axis : system.getCoordinateAxes()) {
+                        axes.add(axis);
+                    }
+                }
+            }
+        } else {
+            for (CoordinateAxis axis : dataset.getCoordinateAxes()) {
+                axes.add(axis);
+            }
+        }
+        
+        for (CoordinateAxis axis : axes) {
+            if (axis instanceof CoordinateAxis1D && axis.getAxisType() != null && !axis.getShortName().startsWith("reftime") && !coordinates.containsKey(axis.getShortName())) {
+                coordinates.put(axis.getShortName(), CoordinateVariable.create((CoordinateAxis1D)axis));
             } else {
                 // Workaround for Unsupported Axes
                 Set<String> unsupported = NetCDFUtilities.getUnsupportedDimensions();
-                if (axis instanceof CoordinateAxis1D && unsupported.contains(axis.getFullName())) {
+                if (axis instanceof CoordinateAxis1D && unsupported.contains(axis.getShortName())) {
                     axis.setAxisType(AxisType.GeoZ);
-                    coordinates.put(axis.getFullName(),
+                    coordinates.put(axis.getShortName(),
                             CoordinateVariable.create((CoordinateAxis1D) axis));
                 // Workaround for files that have a time dimension, but in a format that could not be parsed
-                } else if ("time".equals(axis.getFullName())) {
+                } else if ("time".equals(axis.getShortName())) {
                     LOGGER.warning("Detected unparseable unit string in time axis: '"
                             + axis.getUnitsString() + "'.");
                     axis.setAxisType(AxisType.Time);
                     coordinates.put(axis.getFullName(),
                             CoordinateVariable.create((CoordinateAxis1D) axis));
-                } else if ("reftime".equals(axis.getFullName())) {
+                } else if (axis.getShortName().startsWith("reftime")) {
                     if (LOGGER.isLoggable(Level.FINE)) {
                         LOGGER.fine("Unable to support reftime which is not a CoordinateAxis1D");
                     }
@@ -195,7 +216,7 @@ class NetCDFGeoreferenceManager {
             }
         }
         coordinatesVariables = coordinates;
-        initMapping(dataset.getCoordinateAxes());
+        initMapping(axes);
     }
 
     /**
@@ -300,7 +321,7 @@ class NetCDFGeoreferenceManager {
      *  
      * @param coordinateAxes
      */
-    private void initMapping(List<CoordinateAxis> coordinateAxes) {
+    private void initMapping(Set<CoordinateAxis> coordinateAxes) {
         // check other dimensions
         int coordinates2D = 0;
         Map<String, String> dimensionsMap = new HashMap<String, String>();

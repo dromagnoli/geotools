@@ -116,6 +116,8 @@ public class NetCDFUtilities {
 
     public static final String UNKNOWN = "unknown";
 
+    public static final String BEST = "Best";
+
 
     private NetCDFUtilities() {
 
@@ -448,7 +450,7 @@ public class NetCDFUtilities {
             }
             int twoDimensionalCoordinates = 0;
             for (Dimension dimension : dimensions) {
-                String dimName = dimension.getFullName();
+                String dimName = dimension.getShortName();
                 // check the dimension to be defined
                 Group group = dimension.getGroup();
                 // Simple check if the group is not present. In that case false is returned.

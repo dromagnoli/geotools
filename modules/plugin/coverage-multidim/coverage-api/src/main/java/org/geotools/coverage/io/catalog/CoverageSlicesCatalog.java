@@ -430,7 +430,9 @@ public class CoverageSlicesCatalog {
                     returnValue.add(slice);
                 }
             } finally {
-                it.close();
+                if (it != null) {
+                    it.close();
+                }
 
                 if (tx != null) {
                     tx.close();

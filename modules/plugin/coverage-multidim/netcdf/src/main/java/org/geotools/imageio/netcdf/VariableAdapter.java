@@ -681,7 +681,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
             CoordinateVariable<?> cv=reader.georeferencing.getCoordinateVariable(axis.getShortName());
             if (cv == null) { 
                 if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine("Unable to find a coordinate variable for " + axis.getFullName());
+                    LOGGER.fine("Unable to find a coordinate variable for " + axis.getShortName());
                 }
                 continue;
             }
@@ -982,7 +982,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         this.variableDS = variable;
         this.reader = reader;
         this.coverageName = coverageName;
-        setName(variable.getFullName());
+        setName(variable.getShortName());
         init();
     }
 
@@ -1096,7 +1096,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         if (lastIndex > slicesNum) {
             lastIndex = slicesNum;
         }
-        final String varName = variableDS.getFullName();
+        final String varName = variableDS.getShortName();
         for (int imageIndex = startIndex; imageIndex < lastIndex; imageIndex++) {
             int zIndex = -1;
             int tIndex = -1;
@@ -1205,7 +1205,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
 
     private String getTimeAttribute(CoordinateSystem cs) {
         CoordinateAxis timeAxis = cs.getTaxis();
-        String name = timeAxis.getFullName();
+        String name = timeAxis.getShortName();
         String timeAttribute = reader.georeferencing.getDimension(name.toUpperCase());
         if (timeAttribute == null) {
             timeAttribute = reader.georeferencing.getDimension(NetCDFUtilities.TIME_DIM);
@@ -1229,7 +1229,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         if (cs != null && cs.hasVerticalAxis()) {
             final int rank = variable.getRank();
             final Dimension verticalDimension = variable.getDimension(rank - NetCDFUtilities.Z_DIMENSION);
-            return (Number) reader.georeferencing.getCoordinateVariable(verticalDimension.getFullName()).read(zIndex);
+            return (Number) reader.georeferencing.getCoordinateVariable(verticalDimension.getShortName()).read(zIndex);
         }
         return ve;
     }
@@ -1250,7 +1250,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
             final int rank = variable.getRank();
             final Dimension temporalDimension = variable.getDimension(rank
                     - ((cs.hasVerticalAxis() ? NetCDFUtilities.Z_DIMENSION : 2) + 1));
-            return (Date) reader.georeferencing.getCoordinateVariable(temporalDimension.getFullName()).read(timeIndex);
+            return (Date) reader.georeferencing.getCoordinateVariable(temporalDimension.getShortName()).read(timeIndex);
         }
 
         return null;
