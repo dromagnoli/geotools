@@ -23,6 +23,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -203,7 +204,7 @@ class NetCDFGeoreferenceManager {
                     LOGGER.warning("Detected unparseable unit string in time axis: '"
                             + axis.getUnitsString() + "'.");
                     axis.setAxisType(AxisType.Time);
-                    coordinates.put(axis.getFullName(),
+                    coordinates.put(axis.getShortName(),
                             CoordinateVariable.create((CoordinateAxis1D) axis));
                 } else if (axis.getShortName().startsWith("reftime")) {
                     if (LOGGER.isLoggable(Level.FINE)) {
@@ -216,7 +217,7 @@ class NetCDFGeoreferenceManager {
             }
         }
         coordinatesVariables = coordinates;
-        initMapping(axes);
+        initMapping(coordinates);
     }
 
     /**
@@ -319,15 +320,16 @@ class NetCDFGeoreferenceManager {
      * Parse the coordinateAxes and retrieve the associated coordinateVariable
      * to be used for the dimension mapping.
      *  
-     * @param coordinateAxes
+     * @param coordinates
      */
-    private void initMapping(Set<CoordinateAxis> coordinateAxes) {
+    private void initMapping(Map<String, CoordinateVariable<?>> coordinates) {
         // check other dimensions
         int coordinates2D = 0;
         Map<String, String> dimensionsMap = new HashMap<String, String>();
-        for (CoordinateAxis axis : coordinateAxes) {
+        Set<String> coordinateKeys = new TreeSet<String>(coordinates.keySet());
+        for (String key : coordinateKeys) {
             // get from coordinate vars
-            final CoordinateVariable<?> cv = getCoordinateVariable(axis.getFullName());
+            final CoordinateVariable<?> cv = getCoordinateVariable(key);
             if (cv != null) {
                 final String name = cv.getName();
                 AxisType axisType = cv.getAxisType();
@@ -371,7 +373,7 @@ class NetCDFGeoreferenceManager {
                 }
             } else {
                 if (LOGGER.isLoggable(Level.FINE)) {
-                    LOGGER.fine("Null coordinate variable: '" + axis.getFullName() + "' while processing input: " + dataset.getLocation());
+                    LOGGER.fine("Null coordinate variable: '" + key + "' while processing input: " + dataset.getLocation());
                 }
             }
         }
