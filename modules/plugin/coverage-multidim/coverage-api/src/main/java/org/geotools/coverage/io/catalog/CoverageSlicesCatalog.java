@@ -146,7 +146,7 @@ public class CoverageSlicesCatalog {
 
     public final static String IMAGE_INDEX_ATTR = "imageindex";
 
-    private static final String HIDDEN_FOLDER = ".mapping";
+    public static final String HIDDEN_FOLDER = ".mapping";
 
     private final SoftValueHashMap<Integer, CoverageSlice> coverageSliceDescriptorsCache = new SoftValueHashMap<Integer, CoverageSlice>(0);
 

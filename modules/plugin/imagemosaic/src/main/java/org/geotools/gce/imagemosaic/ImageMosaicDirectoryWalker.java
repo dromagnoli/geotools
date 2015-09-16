@@ -102,7 +102,8 @@ public class ImageMosaicDirectoryWalker extends ImageMosaicWalker {
 
         public MosaicDirectoryWalker(final List<String> indexingDirectories,
                 final FileFilter filter, ImageMosaicWalker walker) throws IOException {
-            super(filter, Integer.MAX_VALUE);// runConfiguration.isRecursive()?Integer.MAX_VALUE:0);
+            super(filter,  Boolean.parseBoolean(configHandler.getRunConfiguration().getParameter(
+                            Prop.RECURSIVE)) ? Integer.MAX_VALUE : 1);
 
             this.walker = walker;
             startTransaction();

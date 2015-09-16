@@ -373,7 +373,7 @@ public class Utils {
 
 	// Make additional filters pluggable
     private static IOFileFilter initCleanUpFilter() {
-        IOFileFilter filesFilter = FileFilterUtils.or(
+        IOFileFilter filesFilter = FileFilterUtils.and(FileFilterUtils.or(
                 FileFilterUtils.suffixFileFilter("properties"),
                 FileFilterUtils.suffixFileFilter("shp"), FileFilterUtils.suffixFileFilter("dbf"),
                 FileFilterUtils.suffixFileFilter("sbn"), FileFilterUtils.suffixFileFilter("sbx"),
@@ -386,7 +386,7 @@ public class Utils {
                 FileFilterUtils.suffixFileFilter("sample_image"),
                 FileFilterUtils.nameFileFilter("error.txt.lck"),
                 FileFilterUtils.suffixFileFilter("xml"),
-                FileFilterUtils.suffixFileFilter("db"));
+                FileFilterUtils.suffixFileFilter("db")), FileFilterUtils.notFileFilter(FileFilterUtils.nameFileFilter("collection.ncx3")));
         return filesFilter;
     }
 

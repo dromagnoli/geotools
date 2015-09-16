@@ -43,6 +43,7 @@ import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
 import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.grid.io.FileSystemFileSetManager;
+import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.catalog.DataStoreConfiguration;
 import org.geotools.data.DataStoreFactorySpi;
 import org.geotools.feature.NameImpl;
@@ -172,6 +173,8 @@ public class AncillaryFileManager implements FileSetManager{
 
     private static JAXBContext CONTEXT = null;
 
+    protected boolean isResetOccurred = false;
+
     static {
         try {
             CONTEXT = JAXBContext.newInstance("org.geotools.gce.imagemosaic.catalog.index");
@@ -286,7 +289,7 @@ public class AncillaryFileManager implements FileSetManager{
 
         if (!createdDir) {
             // Check for index to be reset only in case we didn't created a new directory.
-            checkReset(ncFile, slicesIndexFile, destinationDir);
+            isResetOccurred = checkReset(ncFile, slicesIndexFile, destinationDir);
         }
         fileSetManager.addFile(destinationDir.getAbsolutePath());
 
@@ -333,7 +336,7 @@ public class AncillaryFileManager implements FileSetManager{
      * @param destinationDir
      * @throws IOException
      */
-    private static void checkReset(final File mainFile, final File slicesIndexFile, final File destinationDir) throws IOException {
+    private static boolean checkReset(final File mainFile, final File slicesIndexFile, final File destinationDir) throws IOException {
         // TODO: Consider acquiring a LOCK on the file
         if (slicesIndexFile.exists()) {
             final long mainFileTime = mainFile.lastModified();
@@ -346,12 +349,15 @@ public class AncillaryFileManager implements FileSetManager{
                 for (File file: listedFiles) {
 
                     // Preserve summary file which contains mapping between coverages and underlying variables
-                    if (!file.getAbsolutePath().endsWith(INDEX_SUFFIX)) {
+                    String filePath = file.getAbsolutePath();
+                    if (!filePath.endsWith(INDEX_SUFFIX) && !filePath.contains(CoverageSlicesCatalog.HIDDEN_FOLDER)) {
                         FileUtils.deleteQuietly(file);
                     }
                 }
+                return true;
             }
         }
+        return false;
     }
 
     /**

@@ -41,6 +41,8 @@ public class GRIBFormat extends NetCDFFormat{
     private final static Logger LOGGER = Logging
             .getLogger("org.geotools.coverage.io.grib.GRIBFormat");
 
+    public final static String PARSEABLE_GRIB_COLLECTION = "collection.ncx3";
+    
     /**
      * Creates an instance and sets the metadata.
      */
@@ -89,8 +91,8 @@ public class GRIBFormat extends NetCDFFormat{
 
             // Check if it is a GRIB data and if the GRIB library is available
             boolean gribExtension = NetCDFUtilities.isGribAvailable() && (fileName.contains("grb") || fileName.contains("grib"));
-            
-            if (fileName.endsWith("ncml") || gribExtension){
+
+            if (gribExtension || fileName.endsWith("ncml") || PARSEABLE_GRIB_COLLECTION.equalsIgnoreCase(fileName) ){
                 if (LOGGER.isLoggable(Level.FINEST)) {
                     LOGGER.finest("File is accepted: " + fileName);
                 }

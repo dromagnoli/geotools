@@ -146,6 +146,9 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
     NetCDFGeoreferenceManager georeferencing;
 
+    /** NetCDF Best Group if any */
+    private Group best;
+
     private CheckType checkType = CheckType.UNSET;
 
     /** Internal Cache for CoverageSourceDescriptor.**/
@@ -229,7 +232,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
      * @return the variable or <code>null</code>.
      */
     public Variable getVariableByName( final String varName ) {
-        final List<Variable> varList = useBestGroup ? dataset.findGroup(NetCDFUtilities.BEST).getVariables() : dataset.getVariables();
+        final List<Variable> varList = useBestGroup ? best.getVariables() : dataset.getVariables();
         for( Variable var : varList ) {
             if (var.getShortName().equals(varName))
                 return var;
@@ -253,6 +256,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         }
         try {
             dataset = extractDataset(input);
+            best = dataset.findGroup(NetCDFUtilities.BEST); 
+            useBestGroup = best != null;
             file = NetCDFUtilities.getFile(input);
             if (file != null) {
                 ancillaryFileManager = new AncillaryFileManager(file, getAuxiliaryFilesPath(), getAuxiliaryDatastorePath());
@@ -279,9 +284,13 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
             // init slice catalog
             DataStoreConfiguration datastoreConfig = ancillaryFileManager.getDatastoreConfiguration();
             boolean isShared = datastoreConfig.isShared();
-            initCatalog(datastoreConfig);
-            Group best = dataset.findGroup(NetCDFUtilities.BEST); 
-            useBestGroup = best != null;
+            if (isShared && ancillaryFileManager.isResetOccurred) {
+                settingTypeNames(datastoreConfig);
+                initCatalog(datastoreConfig);
+                getCatalog().purge(Filter.INCLUDE);
+            } else {
+                initCatalog(datastoreConfig);
+            }
             final List<Variable> variables = useBestGroup ? best.getVariables() : dataset.getVariables();
             if (variables != null) {
 

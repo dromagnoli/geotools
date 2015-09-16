@@ -590,6 +590,12 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         Map<String, String> dimensionsMapping = reader.georeferencing.getDimensions();
         Set<String> keys = dimensionsMapping.keySet();
         int indexAttribute = FIRST_ATTRIBUTE_INDEX;
+        final AttributeDescriptor attributeDescriptor = indexSchema.getDescriptor(indexAttribute);
+        final String updatedAttribute = attributeDescriptor.getLocalName();
+        if ("location".equalsIgnoreCase(updatedAttribute)) {
+            // Skip location attribute
+            indexAttribute++;
+        }
 
         // Remap time
         String currentDimName = NetCDFUtilities.TIME_DIM;
@@ -632,12 +638,11 @@ public class VariableAdapter extends CoverageSourceDescriptor {
 
         // Get the attribute descriptor for that index
         final AttributeDescriptor attributeDescriptor = indexSchema.getDescriptor(indexAttribute);
-
+        final String updatedAttribute = attributeDescriptor.getLocalName();
         // Loop over dimensionDescriptors 
         for (DimensionDescriptor descriptor : descriptors) {
             // Find the descriptor related to the current dimension
             if (descriptor.getName().toUpperCase().equalsIgnoreCase(currentDimName)) {
-                final String updatedAttribute = attributeDescriptor.getLocalName();
                 if (!updatedAttribute.equals(((DefaultDimensionDescriptor) descriptor)
                         .getStartAttribute())) {
                     // Remap attributes in case the schema's attribute doesn't match the current attribute
