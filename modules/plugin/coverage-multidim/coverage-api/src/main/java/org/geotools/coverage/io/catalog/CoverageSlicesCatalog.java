@@ -469,8 +469,10 @@ public class CoverageSlicesCatalog {
         try {
             lock.lock();
             checkStore();
-
-            slicesIndexStore.createSchema(featureType);
+            SimpleFeatureType existing = slicesIndexStore.getSchema(featureType.getName());
+            if (existing == null) {
+                slicesIndexStore.createSchema(featureType);
+            }
             typeName = featureType.getTypeName();
             if (typeName != null) {
                 addTypeName(typeName, true);
