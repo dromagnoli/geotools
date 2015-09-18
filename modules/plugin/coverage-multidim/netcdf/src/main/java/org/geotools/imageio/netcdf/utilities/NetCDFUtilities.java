@@ -236,6 +236,8 @@ public class NetCDFUtilities {
 
     public final static String GEO_TRANSFORM = "GeoTransform";
 
+    public final static String UNIQUE_TIME_ATTRIBUTE = "uniqueTimeAttribute";
+
     final static Set<String> EXCLUDED_ATTRIBUTES = new HashSet<String>();
 
     /**
@@ -757,7 +759,7 @@ public class NetCDFUtilities {
         // get the schema
         try {
             indexSchema = DataUtilities.createType(schemaName, schemaDef);
-            indexSchema = DataUtilities.createSubType(indexSchema,DataUtilities.attributeNames(indexSchema), crs);
+            indexSchema = DataUtilities.createSubType(indexSchema, DataUtilities.attributeNames(indexSchema), crs);
         } catch (Throwable e) {
             if (LOGGER.isLoggable(Level.FINE))
                 LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
