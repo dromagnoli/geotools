@@ -41,6 +41,7 @@ import org.geotools.image.io.ImageIOExt;
 import org.geotools.util.URLs;
 
 import it.geosolutions.imageio.maskband.DatasetLayout;
+import it.geosolutions.imageio.stream.input.FileImageInputStreamExtImpl;
 
 /**
  * Helper class used for handling Internal/External overviews and masks for a File
@@ -127,8 +128,9 @@ public class MaskOverviewProvider {
             overviewStreamSpi = getInputStreamSPIFromURL(ovrURL);
             ImageInputStream ovrStream = null;
             try {
-                ovrStream = overviewStreamSpi.createInputStreamInstance(ovrURL,
-                        ImageIO.getUseCache(), ImageIO.getCacheDirectory());
+                /*ovrStream = overviewStreamSpi.createInputStreamInstance(ovrURL,
+                        ImageIO.getUseCache(), ImageIO.getCacheDirectory());*/
+                ovrStream = new FileImageInputStreamExtImpl(overviewFile);
                 overviewReaderSpi = getReaderSpiFromStream(null, ovrStream);
             } catch (Exception e) {
                 if (LOGGER.isLoggable(Level.WARNING)) {
@@ -718,8 +720,13 @@ public class MaskOverviewProvider {
             streamSpi = getInputStreamSPIFromURL(fileURL);
             ImageInputStream stream = null;
             try {
-                stream = streamSpi.createInputStreamInstance(fileURL, ImageIO.getUseCache(),
-                        ImageIO.getCacheDirectory());
+                /*stream = streamSpi.createInputStreamInstance(fileURL, ImageIO.getUseCache(),
+                        ImageIO.getCacheDirectory());*/
+                stream = new FileImageInputStreamExtImpl(inputFile);
+                if (stream == null) {
+                    System.out.println("Unable to create a FileImageInputStream for the provided inputFile:" + inputFile);
+                    throw new IllegalArgumentException("Unable to create a stream for file: " + inputFile);
+                }
                 readerSpi = getReaderSpiFromStream(suggestedSPI, stream);
                 isMultidim = readerSpi != null && MULTIDIM_SERVICE_PROVIDERS.contains(readerSpi.getClass().getName());
             } catch (Exception e) {

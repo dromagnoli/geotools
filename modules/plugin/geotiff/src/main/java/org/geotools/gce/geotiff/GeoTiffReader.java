@@ -120,6 +120,7 @@ import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
 
 import it.geosolutions.imageio.maskband.DatasetLayout;
+import it.geosolutions.imageio.stream.input.FileImageInputStreamExtImpl;
 import it.geosolutions.imageioimpl.plugins.tiff.TIFFImageReaderSpi;
 import it.geosolutions.imageioimpl.plugins.tiff.TiffDatasetLayoutImpl;
 
@@ -619,9 +620,9 @@ public class GeoTiffReader extends AbstractGridCoverage2DReader implements GridC
                             .createInputStreamInstance(maskOvrProvider.getOvrURL(),
                                     ImageIO.getUseCache(), ImageIO.getCacheDirectory()));
                 } else {
-                    pbjRead.add(maskOvrProvider.getInputStreamSpi().createInputStreamInstance(
-                            maskOvrProvider.getFileURL(), ImageIO.getUseCache(),
-                            ImageIO.getCacheDirectory()));
+                    File file = URLs.urlToFile(maskOvrProvider.getFileURL());
+                    ImageInputStream stream = new FileImageInputStreamExtImpl(file);
+                    pbjRead.add(stream);
                 }
                 pbjRead.add(maskOvrProvider.getOverviewIndex(imageChoice));
             } else {
