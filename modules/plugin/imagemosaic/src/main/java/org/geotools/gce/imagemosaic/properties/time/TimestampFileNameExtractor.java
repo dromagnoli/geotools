@@ -19,14 +19,12 @@ package org.geotools.gce.imagemosaic.properties.time;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.TimeZone;
+import java.util.*;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.geotools.gce.imagemosaic.properties.PropertiesCollectorSPI;
 import org.geotools.gce.imagemosaic.properties.RegExPropertiesCollector;
+import org.geotools.util.TimeParser;
 import org.geotools.util.logging.Logging;
 import org.opengis.feature.simple.SimpleFeature;
 
@@ -34,7 +32,7 @@ import org.opengis.feature.simple.SimpleFeature;
 class TimestampFileNameExtractor extends RegExPropertiesCollector {
     private static final Logger LOGGER = Logging.getLogger(TimestampFileNameExtractor.class);
 
-    private static final TimeParser parser = new TimeParser();
+    private static final TimeParser parser = new TimeParser(-1, true);
 
     private DateFormat customFormat;
 
@@ -63,7 +61,7 @@ class TimestampFileNameExtractor extends RegExPropertiesCollector {
                     Date parsed = customFormat.parse(match);
                     dates.add(parsed);
                 } else {
-                    List<Date> parsed = parser.parse(match);
+                    Collection parsed = parser.parse(match);
                     dates.addAll(parsed);
                 }
             } catch (ParseException e) {
