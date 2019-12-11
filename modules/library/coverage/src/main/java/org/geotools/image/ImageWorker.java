@@ -2257,6 +2257,9 @@ public class ImageWorker {
             if (background != null && background.length > 0) {
                 // Elaborating the final NoData value
                 pb.set(background[0], 1);
+            } else if (nodata != null) {
+                // default background value may screw up things, preserving nodata
+                pb.set(((Number) nodata.getMin()).doubleValue(), 1);
             }
         }
         pb.set(roi, 3);
@@ -2306,6 +2309,9 @@ public class ImageWorker {
             if (background != null && background.length > 0) {
                 double dest = background[0];
                 pb.set(dest, 1);
+            } else if (nodata != null) {
+                // default background value may screw up things, preserving nodata
+                pb.set(((Number) nodata.getMin()).doubleValue(), 1);
             }
         }
         pb.set(roi, 3);
@@ -2357,6 +2363,9 @@ public class ImageWorker {
             if (background != null && background.length > 0) {
                 double dest = background[0];
                 pb.set(dest, 1);
+            } else {
+                // default background value may screw up things, preserving nodata
+                pb.set(((Number) nodata.getMin()).doubleValue(), 1);
             }
         }
         pb.set(transformationList, 3);
