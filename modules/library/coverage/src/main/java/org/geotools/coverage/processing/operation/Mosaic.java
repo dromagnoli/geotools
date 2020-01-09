@@ -972,7 +972,7 @@ public class Mosaic extends OperationJAI {
                 } else if (rois[i] == null) {
                     // no ROI, the image is full
                     RenderedImage ri = sources[i].getRenderedImage();
-                    finalROI.add(
+                    finalROI = finalROI.add(
                             new ROIShape(
                                     new Rectangle2D.Double(
                                             ri.getMinX(),
@@ -980,7 +980,7 @@ public class Mosaic extends OperationJAI {
                                             ri.getWidth(),
                                             ri.getHeight())));
                 } else {
-                    finalROI.add(rois[i]);
+                    finalROI = finalROI.add(rois[i]);
                 }
             }
             CoverageUtilities.setROIProperty(properties, finalROI);

@@ -685,8 +685,9 @@ public final class GridCoverageRenderer {
         int numBands = im.getSampleModel().getNumBands();
         GridSampleDimension[] sd = new GridSampleDimension[numBands];
         for (int i = 0; i < numBands; i++) {
-            sd[i] =
-                    new GridSampleDimension(
+            // Preserve the sample dimensions when no symbolizer get used
+            sd[i] = new GridSampleDimension(
+                    symbolizer == null ? input.getSampleDimension(i).getDescription() :
                             TypeMap.getColorInterpretation(im.getColorModel(), i).name());
         }
 
@@ -912,7 +913,7 @@ public final class GridCoverageRenderer {
                                         iw.getRenderedImage(),
                                         coverage.getGridGeometry(),
                                         null,
-                                        new GridCoverage2D[] {coverage},
+                                        new GridCoverage2D[]{coverage},
                                         coverage.getProperties());
                         coverages.set(i, expandedCoverage);
                     }
@@ -1043,8 +1044,8 @@ public final class GridCoverageRenderer {
                         RenderedImage r2 = c2.getRenderedImage();
                         // area2 - area1, largest first
                         long areaDiff =
-                                ((long) r2.getWidth()) * r2.getHeight()
-                                        - ((long) r1.getWidth()) * r1.getHeight();
+                                ((long) r2.getWidth()) * r2.getHeight() -
+                                 ((long) r1.getWidth()) * r1.getHeight();
                         return (int) Math.signum(areaDiff);
                     };
             Collections.sort(symbolizedCoverages, sliverComparator);
@@ -1115,7 +1116,7 @@ public final class GridCoverageRenderer {
                     coverage.getName(),
                     pi,
                     coverage.getGridGeometry(),
-                    null,
+                    coverage.getSampleDimensions(),
                     new GridCoverage2D[] {coverage},
                     properties);
         } else {
@@ -1146,6 +1147,7 @@ public final class GridCoverageRenderer {
             return new double[] {dx, dy};
         }
     }
+
 
     /**
      * Paint this grid coverage. The caller must ensure that <code>graphics</code> has an affine
@@ -1212,7 +1214,6 @@ public final class GridCoverageRenderer {
      * the coordinate system given by {@link #getCoordinateSystem}.
      *
      * @param graphics the {@link Graphics2D} context in which to paint.
-     * @param metaBufferedEnvelope
      * @throws Exception
      * @throws UnsupportedOperationException if the transformation from grid to coordinate system in
      *     the GridCoverage is not an AffineTransform
