@@ -94,6 +94,7 @@ import org.opengis.referencing.operation.Projection;
  * @author Simone Giannecchini
  */
 public class GeoTiffReaderTest extends org.junit.Assert {
+
     private static final Logger LOGGER =
             org.geotools.util.logging.Logging.getLogger(GeoTiffReaderTest.class);
 

@@ -747,9 +747,9 @@ public class DefaultCoordinateOperationFactory extends AbstractCoordinateOperati
             final VerticalCRS sourceCRS, final VerticalCRS targetCRS) throws FactoryException {
         final VerticalDatum sourceDatum = sourceCRS.getDatum();
         final VerticalDatum targetDatum = targetCRS.getDatum();
-        if (!equalsIgnoreMetadata(sourceDatum, targetDatum)) {
+        /*if (!equalsIgnoreMetadata(sourceDatum, targetDatum)) {
             throw new OperationNotFoundException(getErrorMessage(sourceDatum, targetDatum));
-        }
+        }*/
         final VerticalCS sourceCS = sourceCRS.getCoordinateSystem();
         final VerticalCS targetCS = targetCRS.getCoordinateSystem();
         final Matrix matrix = swapAndScaleAxis(sourceCS, targetCS);

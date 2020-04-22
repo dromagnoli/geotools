@@ -19,20 +19,29 @@ package org.geotools.referencing.factory.epsg;
 import static org.junit.Assert.*;
 
 import java.io.File;
+import java.util.Collection;
+import java.util.List;
 import java.util.Properties;
 import java.util.Set;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.ReferencingFactoryFinder;
+import org.geotools.referencing.crs.DefaultCompoundCRS;
 import org.geotools.util.factory.AbstractFactory;
 import org.geotools.util.factory.Hints;
 import org.junit.Before;
 import org.junit.Test;
+import org.opengis.metadata.extent.Extent;
 import org.opengis.referencing.FactoryException;
+import org.opengis.referencing.ReferenceIdentifier;
+import org.opengis.referencing.crs.CompoundCRS;
 import org.opengis.referencing.crs.CoordinateReferenceSystem;
+import org.opengis.referencing.cs.CoordinateSystem;
 import org.opengis.referencing.operation.CoordinateOperation;
 import org.opengis.referencing.operation.MathTransform;
 import org.opengis.referencing.operation.TransformException;
+import org.opengis.util.GenericName;
+import org.opengis.util.InternationalString;
 
 /**
  * Tests the {@link testCoordinateOperationFactoryUsingWKT} public methods.
@@ -203,5 +212,29 @@ public class CoordinateOperationFactoryUsingWKTTest {
                             + " threw a FactoryException when creating"
                             + " coordinate operation from an existing code.");
         }
+    }
+
+    @Test
+    public void testVerticalCRSTransform() throws FactoryException, TransformException {
+        CoordinateReferenceSystem grid1CRS = CRS.decode("EPSG:4312");
+        CoordinateReferenceSystem grid2CRS = CRS.decode("EPSG:4258");
+//        MathTransform ntv2Transform = CRS.findMathTransform(grid1CRS, grid2CRS);
+
+
+        CoordinateReferenceSystem austriaCRS = CRS.decode("EPSG:31255");
+        CoordinateReferenceSystem inspireCRS = CRS.decode("EPSG:3035");
+
+        CoordinateReferenceSystem heightCRS = CRS.decode("EPSG:5778");
+        CoordinateReferenceSystem evrs = CRS.decode("EPSG:9274");
+        MathTransform transform = CRS.findMathTransform(heightCRS, evrs);
+
+//        CompoundCRS compound = new DefaultCompoundCRS("test", austriaCRS, heightCRS);
+//        CompoundCRS compound2 = new DefaultCompoundCRS("test2", inspireCRS, evrs);
+//        CRS.findMathTransform(compound, compound2);
+
+
+        double[] testPoint = {3.084896111, 39.592654167, 10};
+        double[] destPoint = new double[3];
+        transform.transform(testPoint, 0, destPoint, 0, 1);
     }
 }
