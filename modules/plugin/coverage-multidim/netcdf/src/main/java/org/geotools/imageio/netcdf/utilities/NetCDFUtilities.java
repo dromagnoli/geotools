@@ -406,8 +406,10 @@ public class NetCDFUtilities {
                     Integer.getInteger(
                             "org.geotools.coverage.io.netcdf.cache.cleanup.period", 12 * 60);
             NetcdfDataset.initNetcdfFileCache(minElements, maxElements, period);
-            ucar.unidata.io.RandomAccessFile.setGlobalFileCache(
-                    new FileCache(minElements, maxElements, period));
+            if (Boolean.getBoolean("org.geotools.coverage.io.netcdf.cacheraf")) {
+                ucar.unidata.io.RandomAccessFile.setGlobalFileCache(
+                        new FileCache(minElements, maxElements, period));
+            }
         }
 
         String property = System.getProperty(CHECK_COORDINATE_PLUGINS_KEY);
@@ -469,6 +471,30 @@ public class NetCDFUtilities {
         IS_NC4_LIBRARY_AVAILABLE = Nc4Iosp.isClibraryPresent();
         if (!IS_NC4_LIBRARY_AVAILABLE && LOGGER.isLoggable(Level.FINE)) {
             LOGGER.fine(NC4_ERROR_MESSAGE);
+        }
+
+        Boolean useForReading =
+                Boolean.getBoolean("org.geotools.coverage.io.netcdf.nc4.useForReading");
+        if (useForReading) {
+            if (IS_NC4_LIBRARY_AVAILABLE) {
+                try {
+                    // Registers Nc4Iosp in front of all the other IOSPs already registered in
+                    // NetcdfFile.<clinit>().
+                    // Crucially, this means that we'll try to open a file with Nc4Iosp before we
+                    // try it with H5iosp.
+                    NetcdfFile.registerIOProvider(Nc4Iosp.class);
+                } catch (IllegalAccessException | InstantiationException e) {
+                    LOGGER.log(
+                            Level.SEVERE,
+                            " Unable to register IOSP: " + Nc4Iosp.class.getCanonicalName(),
+                            e);
+                }
+            } else {
+                LOGGER.log(
+                        Level.WARNING,
+                        "org.geotools.coverage.io.netcdf.nc4.useForReading is 'true' but the native C "
+                                + "library couldn't be found on the system. Falling back to the pure-Java reader.");
+            }
         }
     }
 
