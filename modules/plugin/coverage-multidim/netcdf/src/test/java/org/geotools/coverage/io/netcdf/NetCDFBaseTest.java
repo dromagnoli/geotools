@@ -16,6 +16,10 @@
  */
 package org.geotools.coverage.io.netcdf;
 
+import java.io.File;
+import java.io.IOException;
+import org.apache.commons.io.FileUtils;
+import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.junit.Assert;
 import org.junit.BeforeClass;
 
@@ -30,6 +34,26 @@ public class NetCDFBaseTest extends Assert {
         // We are hard limiting the mapped byte buffer to validate that it's
         // capable of reading files bigger than the max size of the memory
         // mapped byte buffer
-        System.setProperty("org.geotools.coverage.io.netcdf.memorymaplimit", "65536");
+        System.setProperty("org.geotools.coverage.io.netcdf.memorymaplimit", "32768");
+        // Cache is statically initialized. However, Let's keep it disabled by default
+        // so it won't affect testing where not needed
+        NetCDFUtilities.disableNetCDFFileCaches();
+    }
+
+    public void cleanCache() {
+        if (NetCDFUtilities.useCache()) {
+            cleanNetCDFCache();
+        }
+    }
+
+    public static void cleanNetCDFCache() {
+        NetCDFUtilities.clearCaches();
+    }
+
+    public void cleanupData(File file, boolean cleanCache) throws IOException {
+        if (cleanCache) {
+            cleanCache();
+        }
+        FileUtils.deleteDirectory(file);
     }
 }

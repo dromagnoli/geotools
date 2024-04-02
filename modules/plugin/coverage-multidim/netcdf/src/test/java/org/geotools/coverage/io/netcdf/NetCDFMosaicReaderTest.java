@@ -128,7 +128,7 @@ import ucar.nc2.Variable;
  * @author Stefan Alfons Krueger (alfonx), Wikisquare.de
  * @since 2.3
  */
-public class NetCDFMosaicReaderTest {
+public class NetCDFMosaicReaderTest extends NetCDFBaseTest {
 
     @Rule public TemporaryFolder tempFolder = new TemporaryFolder();
 
@@ -1709,7 +1709,6 @@ public class NetCDFMosaicReaderTest {
 
             // remove granule
             GranuleStore store = (GranuleStore) reader.getGranules("NO2", false);
-
             int removed =
                     store.removeGranules(FF.like(FF.property("location"), "*20130101*"), hints);
             assertEquals(1, removed);

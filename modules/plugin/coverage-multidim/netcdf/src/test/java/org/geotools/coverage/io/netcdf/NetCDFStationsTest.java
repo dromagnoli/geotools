@@ -35,9 +35,11 @@ import org.geotools.gce.imagemosaic.ImageMosaicFormat;
 import org.geotools.gce.imagemosaic.ImageMosaicReader;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.image.util.ImageUtilities;
+import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.referencing.CRS;
 import org.geotools.test.TestData;
 import org.geotools.util.factory.Hints;
+import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
@@ -47,13 +49,16 @@ import org.junit.Test;
  * the binary index for example) are not reused. The stations data set is very small (perfect for
  * testing proposes) please use netcdf dump if you need to check is content.
  */
-public final class NetCDFStationsTest {
+public final class NetCDFStationsTest extends NetCDFBaseTest {
 
     @BeforeClass
     public static void init() {
         // make sure CRS ordering is correct
         System.setProperty("org.geotools.referencing.forceXY", "true");
         CRS.reset("all");
+        NetCDFBaseTest.init();
+        NetCDFUtilities.enableNetCDFFileCaches();
+
     }
 
     @Test
@@ -69,7 +74,6 @@ public final class NetCDFStationsTest {
 
     @Test
     public void readMultipleBandsDimensionSelectingOnlyOneBand() throws Exception {
-
         // we should have only band a single band
         ParameterValue<int[]> selectedBands = AbstractGridFormat.BANDS.createValue();
         selectedBands.setValue(new int[] {1});
@@ -80,7 +84,6 @@ public final class NetCDFStationsTest {
 
     @Test
     public void readMultipleBandsDimensionWithDifferentOrderBandsSelection() throws Exception {
-
         // we should have three bands with values indexes ordered as 2, 0, 1
         ParameterValue<int[]> selectedBands = AbstractGridFormat.BANDS.createValue();
         selectedBands.setValue(new int[] {2, 0, 1});
@@ -115,7 +118,9 @@ public final class NetCDFStationsTest {
      */
     private void checkRasterData(GeneralParameterValue[] parameters, int[]... expected)
             throws Exception {
+        cleanNetCDFCache();
         checkRasterData(readCoverageUsingNetCdfReader(parameters), expected);
+        cleanNetCDFCache();
         checkRasterData(readCoverageUsingImageMosaicReader(parameters), expected);
     }
 

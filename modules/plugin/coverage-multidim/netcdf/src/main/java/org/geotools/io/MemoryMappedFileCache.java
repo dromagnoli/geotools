@@ -63,6 +63,7 @@ import javax.annotation.concurrent.GuardedBy;
 import javax.annotation.concurrent.ThreadSafe;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import ucar.nc2.NetcdfFiles;
 import ucar.nc2.dataset.DatasetUrl;
 import ucar.nc2.time.CalendarDate;
 import ucar.nc2.time.CalendarDateFormatter;
@@ -167,6 +168,17 @@ public class MemoryMappedFileCache implements FileCacheIF {
         }
     }
 
+    protected void addRaf(String uriString, MemoryMappedRandomAccessFile mmraf) {
+        MemoryMappedFileCache.CacheElement elem =
+                cache.putIfAbsent(uriString, new CacheElement(mmraf, uriString));
+
+        if (elem != null) {
+            synchronized (elem) {
+                elem.addFile(mmraf);
+            }
+        }
+    }
+
     @Override
     public void disable() {
         this.disabled.set(true);
@@ -221,15 +233,16 @@ public class MemoryMappedFileCache implements FileCacheIF {
                 if (t != null) {
                     ++t.miss;
                 }
-                String uriString = StringUtil2.replace(location.getTrueurl(), '\\', "/");
-                if (uriString.startsWith("file:")) {
-                    uriString = StringUtil2.unescape(uriString.substring(5));
-                }
-                ncfile = new MemoryMappedRandomAccessFile(uriString, "r");
 
-                // ncfile = NetcdfFiles.open(raf,uriString, null, null);
-                // ncfile = NetcdfDatasets.enhance((NetcdfFile) ncfile,
-                // NetcdfDataset.getDefaultEnhanceMode(), null);
+                //String uriString = StringUtil2.replace(location.getTrueurl(), '\\', "/");
+                //if (uriString.startsWith("file:")) {
+                //                    uriString = StringUtil2.unescape(uriString.substring(5));
+                //                }
+                //ncfile = new MemoryMappedRandomAccessFile(uriString, "r");
+                //ncfile = NetcdfFiles.open(raf,uriString, null, null);
+                //ncfile = NetcdfDatasets.enhance((NetcdfFile) ncfile, NetcdfDataset.getDefaultEnhanceMode(), null);
+                ncfile = factory.open(location, buffer_size, cancelTask, spiObject);
+
                 if (cacheLog.isDebugEnabled()) {
                     cacheLog.debug(
                             "MemoryMappedFileCache "
