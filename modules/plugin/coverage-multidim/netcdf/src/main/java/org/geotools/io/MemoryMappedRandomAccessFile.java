@@ -19,6 +19,7 @@ package org.geotools.io;
 import java.io.IOException;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.util.NIOUtilities;
 import ucar.nc2.util.cache.FileCacheIF;
 import ucar.unidata.io.KMPMatch;
@@ -68,12 +69,14 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
 
     private long currentOffset = 0;
     private FileChannel.MapMode mapMode;
+    public long id = 0;
 
-    public MemoryMappedRandomAccessFile(String location, String mode) throws IOException {
+    public MemoryMappedRandomAccessFile(String location, String mode, long id) throws IOException {
         super(MemoryMappedRandomAccessFile.getUriString(location), mode, DEFAULT_BUFFER_SIZE);
         if (!readonly) reportReadOnly();
         initDataBuffer();
         cacheUsage = CacheUsage.IN_USE;
+        this.id = id;
     }
 
     private void initDataBuffer() throws IOException {
@@ -82,6 +85,9 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
         long channelSize = channel.size();
         dataSize = (int) channelSize;
         dataEnd = channelSize;
+        debugLeaks = NetCDFUtilities.DEBUG_CACHE;
+        showOpen = NetCDFUtilities.DEBUG_CACHE;
+        showRead = NetCDFUtilities.DEBUG_CACHE;
 
         long initialMapSize =
                 (channelSize - channel.position()) < (long) BUFFER_MEMORY_LIMIT
@@ -98,6 +104,9 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
     public void seek(long pos) throws IOException {
         long jumpSize = pos - filePosition;
         filePosition = pos;
+        if (filePosition < 0) {
+            System.out.println("Negative filePosition on seek: " + filePosition + "for " + this);
+        }
         if (filePosition < dataEnd) {
             if (filePosition >= currentOffset + BUFFER_MEMORY_LIMIT
                     || filePosition < currentOffset) {
@@ -124,6 +133,9 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
     @Override
     public void reacquire() {
         super.reacquire();
+        if (debugLeaks) {
+            // System.out.println("reacquire " + this);
+        }
         cacheUsage = CacheUsage.IN_USE;
     }
 
@@ -140,7 +152,11 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
     public int read() throws IOException {
         bufferCheck(1);
         if (filePosition < dataEnd) {
-            filePosition++;
+            ++filePosition;
+            if (filePosition < 0) {
+                System.out.println(
+                        "Negative filePosition on read: " + filePosition + "for " + this);
+            }
             return mappedByteBuffer.get() & 0xff;
         } else {
             return -1;
@@ -150,6 +166,10 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
     private void bufferCheck(long readSize) throws IOException {
         if (mappedByteBuffer.remaining() < readSize || readSize < 0) {
             long fcPosition = filePosition;
+            if (fcPosition < 0) {
+                System.out.println(
+                        "Negative filePosition on buffercheck: " + fcPosition + "for " + this);
+            }
             if (dataEnd > fcPosition + BUFFER_MEMORY_LIMIT) {
                 currentOffset = fcPosition;
             } else {
@@ -159,10 +179,20 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
                     currentOffset = 0;
                 }
             }
+            int newPosition = (int) (fcPosition - currentOffset);
+            System.out.println(
+                    "cleaning and remapping bytebuffer for "
+                            + this
+                            + " fcPosition: "
+                            + Long.toString(fcPosition)
+                            + " currentOffset:"
+                            + currentOffset
+                            + " newPosition:"
+                            + newPosition);
             NIOUtilities.clean(mappedByteBuffer);
             mappedByteBuffer = channel.map(mapMode, currentOffset, BUFFER_MEMORY_LIMIT);
             // make sure to properly re-align the position
-            mappedByteBuffer.position((int) (fcPosition - currentOffset));
+            mappedByteBuffer.position(newPosition);
         }
     }
 
@@ -172,8 +202,16 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
         length = (int) Math.min(length, dataEnd - filePosition);
         bufferCheck(length);
         if (length > 0) {
+            if (filePosition < 0) {
+                System.out.println(
+                        "Negative filePosition before readbytes: " + filePosition + "for " + this);
+            }
             mappedByteBuffer.get(dst, offset, length);
             filePosition += length;
+            if (filePosition < 0) {
+                System.out.println(
+                        "Negative filePosition after readbytes: " + filePosition + "for " + this);
+            }
             if (filePosition == dataEnd) {
                 endOfFile = true;
             }
@@ -219,19 +257,22 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
         if (debugLeaks) {
             openFiles.remove(this.location);
             if (showOpen) {
-                System.out.println("  close " + this.location);
+                System.out.println("  close " + this);
             }
         }
 
         if (this.file != null) {
             this.flush();
+            System.out.println("Closing java RAF for " + this);
             this.file.close();
             this.file = null;
         }
         if (channel != null && channel.isOpen()) {
+            System.out.println("Closing Channel for " + this);
             channel.close();
         }
         if (mappedByteBuffer != null) {
+            System.out.println("Cleaning MMAPBuffer for " + this);
             NIOUtilities.clean(mappedByteBuffer, true);
         }
 
@@ -249,6 +290,7 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
 
     @Override
     public boolean searchForward(KMPMatch match, int maxBytes) throws IOException {
+        System.out.println("SearchForward " + this);
         long start = this.getFilePointer();
         long last = maxBytes < 0 ? this.length() : Math.min(this.length(), start + (long) maxBytes);
         long needToScan = last - start;
@@ -292,5 +334,56 @@ public class MemoryMappedRandomAccessFile extends RandomAccessFile {
             this.seek(seekPos);
             return false;
         }
+    }
+
+    protected int read_(long pos, byte[] b, int offset, int len) throws IOException {
+        System.out.println("invoking read_ with pos: " + pos);
+        seek(pos);
+        // this.file.seek(pos);
+
+        // int n = this.file.read(b, offset, len);
+        int n = read(b, offset, len);
+        if (debugAccess) {
+            if (showRead) {
+                System.out.printf(
+                        " **read_ %s = %d bytes at %d; block = %d%n",
+                        this.location, len, pos, pos / (long) this.buffer.length);
+            }
+
+            // debug_nseeks.incrementAndGet();
+            // debug_nbytes.addAndGet((long)len);
+        }
+
+        /*if (this.extendMode && n < len) {
+            n = len;
+        }*/
+
+        return n;
+    }
+
+    @Override
+    public int skipBytes(int n) throws IOException {
+        seek(filePosition + (long) n);
+        return n;
+    }
+
+    @Override
+    public long skipBytes(long n) throws IOException {
+        seek(filePosition + n);
+        return n;
+    }
+
+    @Override
+    public void unread() {
+        try {
+            seek(filePosition - 1);
+        } catch (IOException e) {
+            // Does nothing for
+        }
+    }
+
+    @Override
+    public String toString() {
+        return this.location + "(" + id + ")";
     }
 }

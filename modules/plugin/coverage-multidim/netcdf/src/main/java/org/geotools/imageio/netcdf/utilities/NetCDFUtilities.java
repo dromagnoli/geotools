@@ -78,6 +78,7 @@ import ucar.nc2.ffi.netcdf.NetcdfClibrary;
 import ucar.nc2.ft.fmrc.Fmrc;
 import ucar.nc2.util.cache.FileCache;
 import ucar.nc2.util.cache.FileCacheIF;
+import ucar.unidata.io.RandomAccessFile;
 
 /**
  * Set of NetCDF utility methods.
@@ -144,6 +145,7 @@ public class NetCDFUtilities {
             "true".equalsIgnoreCase(System.getProperty("gt2.netcdf.trace"));
 
     public static final Set<NetcdfDataset.Enhance> DEFAULT_ENHANCE_MODE;
+    public static boolean DEBUG_CACHE;
 
     private NetCDFUtilities() {}
 
@@ -536,6 +538,12 @@ public class NetCDFUtilities {
             netcdfFileCache = NetcdfDatasets.getNetcdfFileCache();
 
             ucar.unidata.io.RandomAccessFile.setGlobalFileCache(rafFileCache);
+            DEBUG_CACHE = Boolean.getBoolean("org.geotools.coverage.io.netcdf.cachefile.debug");
+        } else {
+            DEBUG_CACHE = false;
+        }
+        if (DEBUG_CACHE) {
+            RandomAccessFile.setDebugLeaks(true);
         }
     }
 
