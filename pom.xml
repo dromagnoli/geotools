@@ -496,7 +496,7 @@
     <test.args></test.args>
     <test.exclude.pattern>disabled</test.exclude.pattern>
     <test.forkCount>1</test.forkCount>
-    <test.maxHeapSize>256M</test.maxHeapSize>
+    <test.maxHeapSize>512M</test.maxHeapSize>
     <test.otherJVMParams></test.otherJVMParams>
     <!-- qa configuration -->
     <checkstyle.excludes>**/generated/**/*</checkstyle.excludes>
