@@ -92,7 +92,9 @@ public class LambertConformal1SP extends LambertConformal {
                             new NamedIdentifier(
                                     Citations.GEOTOOLS,
                                     Vocabulary.formatInternational(
-                                            VocabularyKeys.LAMBERT_CONFORMAL_PROJECTION))
+                                            VocabularyKeys.LAMBERT_CONFORMAL_PROJECTION)),
+                            new NamedIdentifier(Citations.PROJ, "goode"),
+                            new NamedIdentifier(Citations.PROJ, "lcc")
                         },
                         new ParameterDescriptor[] {
                             SEMI_MAJOR,
