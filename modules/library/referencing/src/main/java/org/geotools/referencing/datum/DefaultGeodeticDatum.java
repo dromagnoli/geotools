@@ -64,7 +64,8 @@ public class DefaultGeodeticDatum extends AbstractDatum implements GeodeticDatum
             new NamedIdentifier(null, "WGS 1984"),
             new NamedIdentifier(Citations.EPSG, "WGS_1984"),
             new NamedIdentifier(Citations.ESRI, "D_WGS_1984"),
-            new NamedIdentifier(Citations.EPSG, "World Geodetic System 1984")
+            new NamedIdentifier(Citations.EPSG, "World Geodetic System 1984"),
+            new NamedIdentifier(Citations.PROJ, "WGS84")
         };
         final Map<String, Object> properties = new HashMap<>(4);
         properties.put(NAME_KEY, identifiers[0]);
