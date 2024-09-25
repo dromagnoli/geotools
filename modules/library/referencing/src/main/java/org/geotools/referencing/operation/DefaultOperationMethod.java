@@ -54,7 +54,8 @@ import org.geotools.util.Utilities;
  * @author Martin Desruisseaux (IRD)
  * @see DefaultOperation
  */
-public class DefaultOperationMethod extends AbstractIdentifiedObject implements OperationMethod, PROJFormattable {
+public class DefaultOperationMethod extends AbstractIdentifiedObject
+        implements OperationMethod, PROJFormattable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = -98032729598205972L;
 
@@ -331,7 +332,6 @@ public class DefaultOperationMethod extends AbstractIdentifiedObject implements 
         }
         return "";
     }
-
 
     /**
      * Returns {@code true} if the specified transform is likely to exists only for axis switch

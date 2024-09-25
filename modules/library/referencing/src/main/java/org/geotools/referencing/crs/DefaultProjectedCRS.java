@@ -28,7 +28,6 @@ import org.geotools.api.geometry.MismatchedDimensionException;
 import org.geotools.api.parameter.GeneralParameterDescriptor;
 import org.geotools.api.parameter.GeneralParameterValue;
 import org.geotools.api.parameter.ParameterValue;
-import org.geotools.api.referencing.IdentifiedObject;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem; // For javadoc
 import org.geotools.api.referencing.crs.GeographicCRS;
 import org.geotools.api.referencing.crs.ProjectedCRS;
