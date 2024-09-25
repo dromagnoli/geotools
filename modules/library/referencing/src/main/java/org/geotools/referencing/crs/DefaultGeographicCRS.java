@@ -61,7 +61,8 @@ import si.uom.NonSI;
  * @version $Id$
  * @author Martin Desruisseaux (IRD)
  */
-public class DefaultGeographicCRS extends AbstractSingleCRS implements GeographicCRS, PROJFormattable {
+public class DefaultGeographicCRS extends AbstractSingleCRS
+        implements GeographicCRS, PROJFormattable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = 861224913438092335L;
 
@@ -270,7 +271,7 @@ public class DefaultGeographicCRS extends AbstractSingleCRS implements Geographi
 
         formatter.setAngularUnit(unit);
         if (datum instanceof org.geotools.referencing.util.PROJFormattable) {
-            formatter.append((org.geotools.referencing.util.PROJFormattable)datum);
+            formatter.append((org.geotools.referencing.util.PROJFormattable) datum);
         }
 
         if (!formatter.isProjectedCRS()) {

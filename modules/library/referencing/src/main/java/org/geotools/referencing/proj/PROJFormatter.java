@@ -1,12 +1,10 @@
 package org.geotools.referencing.proj;
 
-import java.io.IOException;
 import java.lang.reflect.Array;
 import java.text.FieldPosition;
 import java.text.MessageFormat;
 import java.text.NumberFormat;
 import java.util.Collection;
-import javax.measure.UnconvertibleException;
 import javax.measure.Unit;
 import javax.measure.quantity.Angle;
 import javax.measure.quantity.Length;
@@ -140,7 +138,6 @@ public class PROJFormatter {
             return this.toString();
         }
         return "";
-
     }
 
     public void append(final org.geotools.referencing.util.PROJFormattable formattable) {
@@ -228,27 +225,27 @@ public class PROJFormatter {
 
     public void append(final Unit<?> unit) {
         if (unit != null) {
-//            try {
-                buffer.append("+units=");
-                String name = remapUnit(unit);
-                buffer.append(name);
-                /*Unit<?> base = null;
-                if (SI.METRE.isCompatible(unit)) {
-                    base = SI.METRE;
-                } else if (SI.SECOND.isCompatible(unit)) {
-                    base = SI.SECOND;
-                } else if (SI.RADIAN.isCompatible(unit)) {
-                    if (!AbstractUnit.ONE.equals(unit)) {
-                        base = SI.RADIAN;
-                    }
+            //            try {
+            buffer.append("+units=");
+            String name = remapUnit(unit);
+            buffer.append(name);
+            /*Unit<?> base = null;
+            if (SI.METRE.isCompatible(unit)) {
+                base = SI.METRE;
+            } else if (SI.SECOND.isCompatible(unit)) {
+                base = SI.SECOND;
+            } else if (SI.RADIAN.isCompatible(unit)) {
+                if (!AbstractUnit.ONE.equals(unit)) {
+                    base = SI.RADIAN;
                 }
-                if (base != null) {
-                    append(unit.getConverterToAny(base).convert(1));
-                }*/
- /*           } catch (IOException | UnconvertibleException e) {
-                throw new IllegalArgumentException("The provided unit is not compatible", e);
             }
-  */      }
+            if (base != null) {
+                append(unit.getConverterToAny(base).convert(1));
+            }*/
+            /*           } catch (IOException | UnconvertibleException e) {
+                          throw new IllegalArgumentException("The provided unit is not compatible", e);
+                      }
+            */ }
     }
 
     private String remapUnit(Unit<?> unit) {
@@ -290,7 +287,7 @@ public class PROJFormatter {
         }
     }
 
-    public void append(String value){
+    public void append(String value) {
         buffer.append(value);
     }
 
@@ -301,8 +298,6 @@ public class PROJFormatter {
     public void append(final double number) {
         format(number);
     }
-
-
 
     /**
      * Returns the preferred name for the specified object. If the specified object contains a name

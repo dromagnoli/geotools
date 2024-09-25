@@ -51,7 +51,8 @@ import si.uom.SI;
  * @version $Id$
  * @author Martin Desruisseaux (IRD)
  */
-public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellipsoid, PROJFormattable {
+public class DefaultEllipsoid extends AbstractIdentifiedObject
+        implements Ellipsoid, PROJFormattable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = -1149451543954764081L;
 
@@ -504,7 +505,7 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject implements Ellips
         final double ivf = getInverseFlattening();
         /*formatter.append(getAxisUnit().getConverterTo(SI.METRE).convert(getSemiMajorAxis()));
         formatter.append(Double.isInfinite(ivf) ? 0 : ivf);
-        */if (!formatter.isDatumProvided()) {
+        */ if (!formatter.isDatumProvided()) {
             if (formatter.isEllipsoidProvided()) {
                 return "+ellps=";
             }
