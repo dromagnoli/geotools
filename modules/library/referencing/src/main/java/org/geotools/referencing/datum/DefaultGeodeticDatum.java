@@ -36,6 +36,8 @@ import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.matrix.XMatrix;
+import org.geotools.referencing.proj.PROJFormatter;
+import org.geotools.referencing.util.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 
 /**
@@ -49,7 +51,7 @@ import org.geotools.referencing.wkt.Formatter;
  * @see Ellipsoid
  * @see PrimeMeridian
  */
-public class DefaultGeodeticDatum extends AbstractDatum implements GeodeticDatum {
+public class DefaultGeodeticDatum extends AbstractDatum implements GeodeticDatum, PROJFormattable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = 8832100095648302943L;
 
@@ -415,5 +417,28 @@ public class DefaultGeodeticDatum extends AbstractDatum implements GeodeticDatum
             }
         }
         return "DATUM";
+    }
+
+    @Override
+    public String formatPROJ(final PROJFormatter formatter) {
+        // Do NOT invokes the super-class method, because
+        // horizontal datum do not write the datum type.
+        if (ellipsoid instanceof org.geotools.referencing.util.PROJFormattable) {
+            formatter.append((org.geotools.referencing.util.PROJFormattable) ellipsoid);
+        }
+        /*
+        if (bursaWolf != null) {
+            for (final BursaWolfParameters transformation : bursaWolf) {
+                if (isWGS84(transformation.targetDatum)) {
+                    formatter.append(transformation);
+                    break;
+                }
+            }
+        }
+        */
+        if (formatter.isDatumProvided()) {
+            return "+datum=";
+        }
+        return "";
     }
 }

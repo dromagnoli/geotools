@@ -39,6 +39,8 @@ import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.operation.transform.AbstractMathTransform;
 import org.geotools.referencing.operation.transform.ConcatenatedTransform;
 import org.geotools.referencing.operation.transform.PassThroughTransform;
+import org.geotools.referencing.proj.PROJFormatter;
+import org.geotools.referencing.util.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
 
@@ -52,7 +54,7 @@ import org.geotools.util.Utilities;
  * @author Martin Desruisseaux (IRD)
  * @see DefaultOperation
  */
-public class DefaultOperationMethod extends AbstractIdentifiedObject implements OperationMethod {
+public class DefaultOperationMethod extends AbstractIdentifiedObject implements OperationMethod, PROJFormattable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = -98032729598205972L;
 
@@ -321,6 +323,15 @@ public class DefaultOperationMethod extends AbstractIdentifiedObject implements 
         }
         return super.formatWKT(formatter);
     }
+
+    @Override
+    public String formatPROJ(final PROJFormatter formatter) {
+        if (Projection.class.isAssignableFrom(getOperationType())) {
+            return "+proj=";
+        }
+        return "";
+    }
+
 
     /**
      * Returns {@code true} if the specified transform is likely to exists only for axis switch

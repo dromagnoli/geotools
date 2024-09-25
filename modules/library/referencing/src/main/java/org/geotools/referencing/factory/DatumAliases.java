@@ -282,15 +282,17 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
                          */
                         final String[] names = elements.toArray(new String[elements.size()]);
                         for (final String name : names) {
-                            final String key = toCaseless(name);
-                            final Object[] previous = aliasMap.put(key, names);
-                            if (previous != null && previous != NEED_LOADING) {
-                                if (previous instanceof GenericName[]) {
-                                    aliasMap.put(key, previous);
-                                } else if (!Arrays.equals(previous, names)) {
-                                    // TODO: localize
-                                    LOGGER.warning(
-                                            "Inconsistent aliases for datum \"" + name + "\".");
+                            if (name != null) {
+                                final String key = toCaseless(name);
+                                final Object[] previous = aliasMap.put(key, names);
+                                if (previous != null && previous != NEED_LOADING) {
+                                    if (previous instanceof GenericName[]) {
+                                        aliasMap.put(key, previous);
+                                    } else if (!Arrays.equals(previous, names)) {
+                                        // TODO: localize
+                                        LOGGER.warning(
+                                                "Inconsistent aliases for datum \"" + name + "\".");
+                                    }
                                 }
                             }
                         }
@@ -378,6 +380,8 @@ public class DatumAliases extends ReferencingFactory implements DatumFactory {
                     }
                 }
                 names[count++] = new LocalName(alias);
+            } else {
+                count++;
             }
         }
         names = XArray.resize(names, count);
