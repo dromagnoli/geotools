@@ -28,6 +28,7 @@ import org.geotools.api.geometry.MismatchedDimensionException;
 import org.geotools.api.parameter.GeneralParameterDescriptor;
 import org.geotools.api.parameter.GeneralParameterValue;
 import org.geotools.api.parameter.ParameterValue;
+import org.geotools.api.referencing.IdentifiedObject;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem; // For javadoc
 import org.geotools.api.referencing.crs.GeographicCRS;
 import org.geotools.api.referencing.crs.ProjectedCRS;
@@ -41,6 +42,8 @@ import org.geotools.api.referencing.operation.OperationMethod;
 import org.geotools.api.referencing.operation.Projection;
 import org.geotools.referencing.operation.DefaultOperationMethod;
 import org.geotools.referencing.operation.DefiningConversion;
+import org.geotools.referencing.proj.PROJFormatter;
+import org.geotools.referencing.util.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.SuppressFBWarnings;
 
@@ -60,7 +63,8 @@ import org.geotools.util.SuppressFBWarnings;
  * @version $Id$
  * @author Martin Desruisseaux (IRD)
  */
-public class DefaultProjectedCRS extends AbstractDerivedCRS implements ProjectedCRS {
+public class DefaultProjectedCRS extends AbstractDerivedCRS
+        implements ProjectedCRS, PROJFormattable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = -4502680112031773028L;
 
@@ -298,5 +302,59 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS implements Projected
         formatter.setAngularUnit(angularUnit);
         formatter.setLinearUnit(linearUnit);
         return "PROJCS";
+    }
+
+    @Override
+    public String formatPROJ(PROJFormatter formatter) {
+        formatter.setProjectedCRS(true);
+        final Ellipsoid ellipsoid = ((GeodeticDatum) datum).getEllipsoid();
+        @SuppressWarnings("unchecked") // Formatter.setLinearUnit(...) will do the check for us.
+        final Unit<Length> unit = (Unit) getUnit();
+        final Unit<Length> linearUnit = formatter.getLinearUnit();
+        final Unit<Angle> angularUnit = formatter.getAngularUnit();
+        final Unit<Length> axisUnit = ellipsoid.getAxisUnit();
+        formatter.setLinearUnit(unit);
+        formatter.setAngularUnit(
+                DefaultGeographicCRS.getAngularUnit(baseCRS.getCoordinateSystem()));
+        OperationMethod method = conversionFromBase.getMethod();
+        if (method instanceof org.geotools.referencing.util.PROJFormattable) {
+            formatter.append((org.geotools.referencing.util.PROJFormattable) method);
+        }
+        if (baseCRS instanceof org.geotools.referencing.util.PROJFormattable)
+            formatter.append((org.geotools.referencing.util.PROJFormattable) baseCRS);
+        for (final GeneralParameterValue param : conversionFromBase.getParameterValues().values()) {
+            final GeneralParameterDescriptor desc = param.getDescriptor();
+            String name;
+            if (nameMatches(desc, name = SEMI_MAJOR) || nameMatches(desc, name = SEMI_MINOR)) {
+                /*
+                 * Do not format semi-major and semi-minor axis length in most cases,  since those
+                 * informations are provided in the ellipsoid. An exception to this rule occurs if
+                 * the lengths are different from the ones declared in the datum.
+                 */
+                if (param instanceof ParameterValue) {
+                    final double value = ((ParameterValue<?>) param).doubleValue(axisUnit);
+                    final double expected =
+                            (name == SEMI_MINOR)
+                                    ? // using '==' is okay here.
+                                    ellipsoid.getSemiMinorAxis()
+                                    : ellipsoid.getSemiMajorAxis();
+                    if (value == expected) {
+                        continue;
+                    }
+                }
+            }
+            formatter.append(param);
+        }
+        formatter.append(unit);
+        /*final int dimension = coordinateSystem.getDimension();
+        for (int i = 0; i < dimension; i++) {
+            formatter.append(coordinateSystem.getAxis(i));
+        }
+        if (unit == null) {
+            formatter.setInvalidWKT(ProjectedCRS.class);
+        }*/
+        formatter.setAngularUnit(angularUnit);
+        formatter.setLinearUnit(linearUnit);
+        return "";
     }
 }
