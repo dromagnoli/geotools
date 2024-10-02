@@ -14,7 +14,7 @@ public class PROJTest {
     public static void main(String[] args) {
         //int[] codes = new int[]{32632};
         //int[] codes = new int[] {3728};
-        int[] codes = new int[] {29371};
+        int[] codes = new int[] {5340};
         PROJFormatter formatter = new PROJFormatter();
         for (int code : codes) {
             formatter.clear();
@@ -24,7 +24,9 @@ public class PROJTest {
                 System.out.println(crs);
                 if (crs instanceof PROJFormattable) {
                     System.out.println(epsgCode);
-                    System.out.println(formatter.toPROJ(crs));
+                    String proj = formatter.toPROJ(crs);
+                    //String proj = formatter.toPROJ(crs);
+                    System.out.println(proj);
                 }
             } catch (FactoryException e) {
                 // Do nothing

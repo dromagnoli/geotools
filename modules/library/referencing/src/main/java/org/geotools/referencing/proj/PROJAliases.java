@@ -7,17 +7,19 @@ import java.net.URL;
 import java.util.HashMap;
 import java.util.Map;
 
-public class EllipsoidAliases {
+/**
+ * A PROJ Dedicated Aliases Lookup that allows to retrieve PROJ
+ * Aliases for most common EPSG Ellipsoids and PrimeMeridians
+ */
+public class PROJAliases {
 
-    private static final String ALIAS_TABLE = "ProjAliases.txt";
+    private static final String ALIAS_TABLE = "PROJAliases.txt";
 
-    // Map to store the EPSG Ellipsoid name and its corresponding PROJ alias
     private Map<String, String> ellipsoidAliases = new HashMap<>();
     private Map<String, String> primeMeridianAliases = new HashMap<>();
 
-    public EllipsoidAliases() {
-        // Load file from the classpath using ClassLoader
-        URL aliasURL = EllipsoidAliases.class.getResource(ALIAS_TABLE);
+    public PROJAliases() {
+        URL aliasURL = PROJAliases.class.getResource(ALIAS_TABLE);
 
         try {
             try (BufferedReader br = new BufferedReader(new InputStreamReader(aliasURL.openStream()))) {
@@ -47,32 +49,17 @@ public class EllipsoidAliases {
                 }
             }
         } catch (IOException ioe) {
-            throw new RuntimeException("Unable to load Ellipsoid Aliases ", ioe.getCause());
+            throw new RuntimeException("Unable to load PROJ Aliases ", ioe.getCause());
         }
     }
 
     // Method to get the PROJ alias for a given EPSG ellipsoid name
-    public String getProjEllipsoidAlias(String epsgEllipsoid) {
+    public String getEllipsoidAlias(String epsgEllipsoid) {
         return ellipsoidAliases.get(epsgEllipsoid);
     }
 
-    public String getProjPrimeMeridianAlias(String epsgEllipsoid) {
-        return primeMeridianAliases.get(epsgEllipsoid);
-    }
-
-    // For testing
-    public static void main(String[] args) {
-
-        // Create an instance of EllipsoidAliasLookup and load the resource file
-        EllipsoidAliases aliasLookup = new EllipsoidAliases();
-
-        // Test lookups
-        String epsgName = "Clarke 1966";
-        String projAlias = aliasLookup.getProjEllipsoidAlias(epsgName);
-        System.out.println("PROJ alias for " + epsgName + ": " + projAlias);
-
-        epsgName = "GRS 1980";
-        projAlias = aliasLookup.getProjEllipsoidAlias(epsgName);
-        System.out.println("PROJ alias for " + epsgName + ": " + projAlias);
+    // Method to get the PROJ alias for a given EPSG prime meridian name
+    public String getPrimeMeridianAlias(String epsgPrimeMeridian) {
+        return primeMeridianAliases.get(epsgPrimeMeridian);
     }
 }

@@ -414,6 +414,7 @@ public class Krovak extends MapProjection {
                             new NamedIdentifier(Citations.EPSG, "Azimuth of initial line"),
                             new NamedIdentifier(Citations.GEOTIFF, "AzimuthAngle"),
                             new NamedIdentifier(Citations.ESRI, "Azimuth"),
+                            new NamedIdentifier(Citations.PROJ, "alpha"),
                         },
                         30.28813972222222,
                         0,
@@ -596,6 +597,7 @@ public class Krovak extends MapProjection {
                             new NamedIdentifier(Citations.OGC, "Krovak (North Orientated)"),
                             new NamedIdentifier(Citations.EPSG, "Krovak (North Orientated)"),
                             new NamedIdentifier(Citations.EPSG, "1041"),
+                            new NamedIdentifier(Citations.PROJ, "krovak")
                         },
                         new ParameterDescriptor[] {
                             SEMI_MAJOR,

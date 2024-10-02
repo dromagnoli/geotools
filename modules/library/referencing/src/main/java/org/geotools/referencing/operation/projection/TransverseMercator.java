@@ -593,7 +593,8 @@ public class TransverseMercator extends MapProjection {
                     createDescriptorGroup(
                             new NamedIdentifier(
                                     Citations.EPSG, "Transverse Mercator (South Orientated)"),
-                            new NamedIdentifier(Citations.EPSG, "9808")));
+                            new NamedIdentifier(Citations.EPSG, "9808"),
+                            new NamedIdentifier(Citations.PROJ, "tmerc")));
         }
 
         /**
