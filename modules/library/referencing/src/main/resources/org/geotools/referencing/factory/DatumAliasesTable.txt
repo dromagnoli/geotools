@@ -43,7 +43,7 @@ Bermuda 1957;Bermuda_1957;D_Bermuda_1957;Bermuda 1957
 Bermuda 2000;;D_Bermuda_2000
 Bern 1938;Bern_1938;D_Bern_1938
 Bissau;Bissau;D_Bissau
-Bogota 1975;Bogota_1975;D_Bogota;Bogota Observatory;Bogota 1975 (Bogota);Bogota_1975_Bogota
+Bogota 1975;Bogota_1975;D_Bogota;Bogota Observatory;Bogota 1975 (Bogota);;
 Bukit Rimpah;Bukit_Rimpah;D_Bukit_Rimpah
 Cadastre 1997;;D_Cadastre_1997
 Camacupa;Camacupa;D_Camacupa

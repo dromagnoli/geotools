@@ -19,57 +19,24 @@
  */
 package org.geotools.referencing.proj;
 
-import java.text.MessageFormat;
-import org.geotools.api.metadata.citation.Citation;
-import org.geotools.api.parameter.GeneralParameterValue;
-import org.geotools.metadata.i18n.ErrorKeys;
-import org.geotools.metadata.iso.citation.Citations;
-import org.geotools.referencing.wkt.Formattable;
-import org.geotools.referencing.wkt.Symbols;
-import org.geotools.referencing.wkt.UnformattableObjectException;
 import org.geotools.util.Classes;
 
 /** */
-public class PROJFormattable extends Formattable
-        implements org.geotools.referencing.util.PROJFormattable {
+public class PROJFormattable implements org.geotools.referencing.util.PROJFormattable {
 
-    /** The formatter for the {@link #toPROJ()} method. */
+    /*
+    // The formatter for the {@link #toPROJ()} method.
     private static final ThreadLocal<PROJFormatter> FORMATTER = new ThreadLocal<>();
+    */
 
     /** Default constructor. */
     protected PROJFormattable() {}
 
-    /** @return The PROJ for this object. */
+/*
     public String toPROJ() throws UnformattableObjectException {
-        return toPROJ(Citations.PROJ);
-    }
-
-    /**
-     * @param strict Controls the check for validity.
-     * @return ThePROJ for this object.
-     */
-    public String toPROJ(boolean strict) throws UnformattableObjectException {
-        return toPROJ(Citations.PROJ, strict);
-    }
-
-    public String toPROJ(final Citation authority) throws UnformattableObjectException {
-        return toPROJ(authority);
-    }
-
-    /**
-     * Returns a WKT for this object using the specified indentation and authority. If {@code
-     * strict} is true, then an exception is thrown if the WKT contains invalid keywords.
-     */
-    private String toPROJ(final Citation authority, final boolean strict)
-            throws UnformattableObjectException {
-        if (authority == null) {
-            throw new IllegalArgumentException(
-                    MessageFormat.format(ErrorKeys.NULL_ARGUMENT_$1, "authority"));
-        }
         PROJFormatter formatter = FORMATTER.get();
-        if (formatter == null || formatter.getAuthority() != authority) {
-            formatter = new PROJFormatter(Symbols.DEFAULT);
-            formatter.setAuthority(authority);
+        if (formatter == null) {
+            formatter = new PROJFormatter();
             FORMATTER.set(formatter);
         }
         try {
@@ -86,7 +53,7 @@ public class PROJFormattable extends Formattable
             formatter.clear();
         }
     }
-
+*/
     public String formatPROJ(final PROJFormatter formatter) {
         Class type = getClass();
         Class[] interfaces = type.getInterfaces();
@@ -103,7 +70,7 @@ public class PROJFormattable extends Formattable
      * Cleans up the thread local set in this thread. They can prevent web applications from proper
      * shutdown
      */
-    public static void cleanupThreadLocals() {
+    /*public static void cleanupThreadLocals() {
         FORMATTER.remove();
-    }
+    }*/
 }

@@ -503,12 +503,18 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject
     @Override
     public String formatPROJ(final PROJFormatter formatter) {
         final double ivf = getInverseFlattening();
-        /*formatter.append(getAxisUnit().getConverterTo(SI.METRE).convert(getSemiMajorAxis()));
-        formatter.append(Double.isInfinite(ivf) ? 0 : ivf);
-        */ if (!formatter.isDatumProvided()) {
+        if (!formatter.isDatumProvided()) {
             if (formatter.isEllipsoidProvided()) {
                 return "+ellps=";
+            } else {
+                formatter.append("+a=");
+                double val = getAxisUnit().getConverterTo(SI.METRE).convert(getSemiMajorAxis());
+                formatter.append(val);
+                if (!Double.isInfinite(ivf)) {
+                    formatter.append(" +rf=" + ivf + " ");
+                }
             }
+
         }
         return "";
     }

@@ -274,21 +274,7 @@ public class DefaultGeographicCRS extends AbstractSingleCRS
             formatter.append((org.geotools.referencing.util.PROJFormattable) datum);
         }
 
-        if (!formatter.isProjectedCRS()) {
-            formatter.append("+no_defs");
-        }
-
-        /*formatter.append(((GeodeticDatum) datum).getPrimeMeridian());
-        formatter.append(unit);
-
-
-        final int dimension = coordinateSystem.getDimension();
-        for (int i = 0; i < dimension; i++) {
-            formatter.append(coordinateSystem.getAxis(i));
-        }
-        if (!unit.equals(getUnit())) {
-            formatter.setInvalidWKT(GeographicCRS.class);
-        }*/
+        formatter.append((org.geotools.referencing.util.PROJFormattable) ((GeodeticDatum) datum).getPrimeMeridian());
         formatter.setAngularUnit(oldUnit);
 
         return "";

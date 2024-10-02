@@ -31,6 +31,7 @@ import org.geotools.api.parameter.ParameterValue;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem; // For javadoc
 import org.geotools.api.referencing.crs.GeographicCRS;
 import org.geotools.api.referencing.crs.ProjectedCRS;
+import org.geotools.api.referencing.cs.AxisDirection;
 import org.geotools.api.referencing.cs.CartesianCS;
 import org.geotools.api.referencing.cs.CoordinateSystem; // For javadoc
 import org.geotools.api.referencing.datum.Ellipsoid;
@@ -326,8 +327,8 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS
             String name;
             if (nameMatches(desc, name = SEMI_MAJOR) || nameMatches(desc, name = SEMI_MINOR)) {
                 /*
-                 * Do not format semi-major and semi-minor axis length in most cases,  since those
-                 * informations are provided in the ellipsoid. An exception to this rule occurs if
+                 * Do not format semi-major and semi-minor axis length in most cases, since this
+                 * information is provided in the ellipsoid. An exception to this rule occurs if
                  * the lengths are different from the ones declared in the datum.
                  */
                 if (param instanceof ParameterValue) {
@@ -345,13 +346,15 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS
             formatter.append(param);
         }
         formatter.append(unit);
-        /*final int dimension = coordinateSystem.getDimension();
-        for (int i = 0; i < dimension; i++) {
-            formatter.append(coordinateSystem.getAxis(i));
+        final int dimension = coordinateSystem.getDimension();
+        if (dimension >= 2) {
+            AxisDirection dir0 = coordinateSystem.getAxis(0).getDirection();
+            AxisDirection dir1 = coordinateSystem.getAxis(1).getDirection();
+            if (dir0==AxisDirection.WEST && dir1==AxisDirection.SOUTH) {
+                formatter.append(" +axis=wsu");
+
+            }
         }
-        if (unit == null) {
-            formatter.setInvalidWKT(ProjectedCRS.class);
-        }*/
         formatter.setAngularUnit(angularUnit);
         formatter.setLinearUnit(linearUnit);
         return "";

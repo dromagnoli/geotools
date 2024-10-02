@@ -423,19 +423,19 @@ public class DefaultGeodeticDatum extends AbstractDatum implements GeodeticDatum
     public String formatPROJ(final PROJFormatter formatter) {
         // Do NOT invokes the super-class method, because
         // horizontal datum do not write the datum type.
-        if (ellipsoid instanceof org.geotools.referencing.util.PROJFormattable) {
+        if (ellipsoid instanceof org.geotools.referencing.util.PROJFormattable && !formatter.isDatumProvided()) {
             formatter.append((org.geotools.referencing.util.PROJFormattable) ellipsoid);
         }
-        /*
-        if (bursaWolf != null) {
+
+       /* if (bursaWolf != null) {
             for (final BursaWolfParameters transformation : bursaWolf) {
                 if (isWGS84(transformation.targetDatum)) {
                     formatter.append(transformation);
                     break;
                 }
             }
-        }
-        */
+        }*/
+
         if (formatter.isDatumProvided()) {
             return "+datum=";
         }

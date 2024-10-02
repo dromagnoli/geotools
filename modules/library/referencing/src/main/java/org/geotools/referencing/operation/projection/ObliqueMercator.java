@@ -667,7 +667,8 @@ public class ObliqueMercator extends MapProjection {
                             new NamedIdentifier(Citations.OGC, "latitude_of_center"),
                             new NamedIdentifier(Citations.EPSG, "Latitude of projection centre"),
                             new NamedIdentifier(Citations.ESRI, "Latitude_Of_Center"),
-                            new NamedIdentifier(Citations.GEOTIFF, "CenterLat")
+                            new NamedIdentifier(Citations.GEOTIFF, "CenterLat"),
+                            new NamedIdentifier(Citations.PROJ, "lat_0")
                         },
                         0,
                         -90,
@@ -684,7 +685,9 @@ public class ObliqueMercator extends MapProjection {
                             new NamedIdentifier(Citations.OGC, "longitude_of_center"),
                             new NamedIdentifier(Citations.EPSG, "Longitude of projection centre"),
                             new NamedIdentifier(Citations.ESRI, "Longitude_Of_Center"),
-                            new NamedIdentifier(Citations.GEOTIFF, "CenterLong")
+                            new NamedIdentifier(Citations.GEOTIFF, "CenterLong"),
+                            new NamedIdentifier(Citations.PROJ, "lon_0")
+
                         },
                         0,
                         -180,
@@ -723,7 +726,7 @@ public class ObliqueMercator extends MapProjection {
                                     Citations.EPSG, "Angle from Rectified to Skew Grid"),
                             new NamedIdentifier(Citations.ESRI, "XY_Plane_Rotation"),
                             new NamedIdentifier(Citations.GEOTIFF, "RectifiedGridAngle"),
-                            new NamedIdentifier(Citations.PROJ, "alpha")
+                            new NamedIdentifier(Citations.PROJ, "gamma")
                         },
                         -360,
                         360,
