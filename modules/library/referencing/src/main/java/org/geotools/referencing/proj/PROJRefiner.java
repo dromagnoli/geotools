@@ -121,7 +121,7 @@ public class PROJRefiner {
     // Apply global updates and regex replacements for specific EPSG codes
     public String refine(String projString, String epsgCode) {
         // Apply global updates
-        StringBuilder updatedProjString = new StringBuilder(projString);
+        StringBuilder updatedProjString = new StringBuilder(sortProjString(projString));
         updatedProjString.append(" " + globalAdditions);
 
         // First refine the units
