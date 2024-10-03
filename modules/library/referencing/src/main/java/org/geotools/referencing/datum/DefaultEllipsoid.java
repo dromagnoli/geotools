@@ -30,7 +30,7 @@ import org.geotools.api.referencing.datum.Ellipsoid;
 import org.geotools.metadata.i18n.ErrorKeys;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.util.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
 import si.uom.SI;

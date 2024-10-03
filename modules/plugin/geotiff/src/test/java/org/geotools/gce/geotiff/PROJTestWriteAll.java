@@ -4,7 +4,7 @@ import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.util.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormattable;
 
 import java.io.FileWriter;
 import java.io.IOException;
@@ -21,7 +21,7 @@ public class PROJTestWriteAll {
             writer.println("EPSG Code,PROJ Definition");
 
             // Iterate over EPSG codes from 1 to 100000
-            for (int epsgCode = 1; epsgCode <= 100000; epsgCode++) {
+            for (int epsgCode = 1; epsgCode <= 33000; epsgCode++) {
                 formatter.clear();
                 try {
                     // Get the CRS from EPSG code
@@ -30,7 +30,6 @@ public class PROJTestWriteAll {
                     if (crs instanceof PROJFormattable) {
                         System.out.println(epsgCode);
                         projString = formatter.toPROJ(crs);
-                        //System.out.println(projString);
                         writer.printf("%d,%s%n", epsgCode, projString);
                     }
 

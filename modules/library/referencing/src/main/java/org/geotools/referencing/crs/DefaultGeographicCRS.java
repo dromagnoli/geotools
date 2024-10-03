@@ -41,7 +41,7 @@ import org.geotools.referencing.cs.DefaultEllipsoidalCS;
 import org.geotools.referencing.datum.DefaultEllipsoid;
 import org.geotools.referencing.datum.DefaultGeodeticDatum;
 import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.util.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.UnsupportedImplementationException;
 import si.uom.NonSI;
@@ -270,11 +270,11 @@ public class DefaultGeographicCRS extends AbstractSingleCRS
         final Unit<Angle> unit = getAngularUnit(coordinateSystem);
 
         formatter.setAngularUnit(unit);
-        if (datum instanceof org.geotools.referencing.util.PROJFormattable) {
-            formatter.append((org.geotools.referencing.util.PROJFormattable) datum);
+        if (datum instanceof PROJFormattable) {
+            formatter.append((PROJFormattable) datum);
         }
 
-        formatter.append((org.geotools.referencing.util.PROJFormattable) ((GeodeticDatum) datum).getPrimeMeridian());
+        formatter.append((PROJFormattable) ((GeodeticDatum) datum).getPrimeMeridian());
         formatter.setAngularUnit(oldUnit);
 
         return "";

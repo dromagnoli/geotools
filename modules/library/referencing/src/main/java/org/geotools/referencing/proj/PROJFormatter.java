@@ -7,7 +7,6 @@ import java.text.NumberFormat;
 import java.util.Collection;
 import java.util.Locale;
 import javax.measure.Unit;
-import javax.measure.UnitConverter;
 import javax.measure.quantity.Angle;
 import javax.measure.quantity.Length;
 
@@ -23,11 +22,10 @@ import org.geotools.api.referencing.datum.Datum;
 import org.geotools.api.referencing.datum.Ellipsoid;
 import org.geotools.api.referencing.datum.PrimeMeridian;
 import org.geotools.api.util.GenericName;
-import org.geotools.measure.UnitFormatter;
 import org.geotools.metadata.i18n.ErrorKeys;
 import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.metadata.math.XMath;
-import org.geotools.referencing.wkt.EpsgUnitFormat;
+import org.geotools.referencing.operation.DefaultOperationMethod;
 import si.uom.SI;
 import tech.units.indriya.AbstractUnit;
 import tech.units.indriya.function.RationalConverter;
@@ -83,45 +81,24 @@ public class PROJFormatter {
     /** The object to use for formatting numbers. */
     private NumberFormat numberFormat;
 
-    /** Warning that may be produced during formatting, or {@code null} if none. */
-    String warning;
-
-    public boolean isProjectedCRS() {
-        return projectedCRS;
-    }
-
-    public void setProjectedCRS(boolean projectedCRS) {
-        this.projectedCRS = projectedCRS;
-    }
+    public boolean isProjectedCRS() { return projectedCRS; }
 
     public boolean isDatumProvided() {
         return datumProvided;
-    }
-
-    public void setDatumProvided(boolean datumProvided) {
-        this.datumProvided = datumProvided;
     }
 
     public boolean isEllipsoidProvided() {
         return ellipsoidProvided;
     }
 
-    public void setEllipsoidProvided(boolean ellipsoidProvided) {
-        this.ellipsoidProvided = ellipsoidProvided && !datumProvided;
-    }
-
     public boolean isPrimeMeridianProvided() {return primeMeridianProvided;}
-
-    public void setPrimeMeridianProvided(boolean primeMeridianProvided) {
-        this.primeMeridianProvided = primeMeridianProvided && !datumProvided;
-    }
 
     private void refineDefinition(IdentifiedObject identifiedObject) {
         String definition = PROJ_REFINER.refine(buffer.toString(), identifiedObject.getIdentifiers().iterator().next().getCode());
         buffer = new StringBuffer(definition);
     }
 
-    public void append(final org.geotools.referencing.util.PROJFormattable formattable) {
+    public void append(final PROJFormattable formattable) {
         int base = buffer.length();
         final IdentifiedObject info =
                 (formattable instanceof IdentifiedObject) ? (IdentifiedObject) formattable : null;
@@ -153,27 +130,28 @@ public class PROJFormatter {
                 }
             }
             String name = getName(descriptor);
-            buffer.append("+" + name);
-            if (unit != null) {
-                double value;
-                try {
-                    value = param.doubleValue();
-                } catch (IllegalStateException exception) {
-                    // May happen if a parameter is mandatory (e.g. "semi-major")
-                    // but no value has been set for this parameter.
-                    warning = exception.getLocalizedMessage();
-                    value = Double.NaN;
+            if (name != null && !name.isBlank()) {
+                buffer.append("+" + name);
+                if (unit != null) {
+                    double value;
+                    try {
+                        value = param.doubleValue();
+                    } catch (IllegalStateException exception) {
+                        // May happen if a parameter is mandatory (e.g. "semi-major")
+                        // but no value has been set for this parameter.
+                        value = Double.NaN;
+                    }
+                    if (!unit.equals(valueUnit)) {
+                        value = XMath.trimDecimalFractionDigits(value, 4, 9);
+                    }
+                    buffer.append("=");
+                    format(value);
+                    buffer.append(" ");
+                } else {
+                    buffer.append("=");
+                    appendObject(param.getValue());
+                    buffer.append(" ");
                 }
-                if (!unit.equals(valueUnit)) {
-                    value = XMath.trimDecimalFractionDigits(value, 4, 9);
-                }
-                buffer.append("=");
-                format(value);
-                buffer.append(" ");
-            } else {
-                buffer.append("=");
-                appendObject(param.getValue());
-                buffer.append(" ");
             }
         }
     }
@@ -181,29 +159,12 @@ public class PROJFormatter {
     public void append(final Unit<?> unit) {
         if (unit != null) {
             buffer.append("+units=");
-            String name = remapUnit(unit);
-            buffer.append(name);
-         }
-    }
-
-    private String remapUnit(Unit<?> unit) {
-        String symbol = unit.getSymbol();
-        if (symbol == null) {
-            symbol = unit.toString();
-        }
-        if ("ft_survey_us".equalsIgnoreCase(symbol)) {
-            symbol = "us-ft";
-        }
-        if (symbol.startsWith("m*") && unit instanceof TransformedUnit) {
-            TransformedUnit tUnit = (TransformedUnit) unit;
-            UnitConverter converter = tUnit.getConverter();
-            if (converter instanceof RationalConverter) {
-                RationalConverter rConverter = (RationalConverter) converter;
-                symbol =  "m +to_meter=" + rConverter.getValue();
+            String symbol = unit.getSymbol();
+            if (symbol == null) {
+                symbol = unit.toString();
             }
-
-        }
-        return symbol;
+            buffer.append(symbol);
+         }
     }
 
     /**
@@ -269,6 +230,9 @@ public class PROJFormatter {
                     if (alias instanceof Identifier) {
                         final Identifier candidate = (Identifier) alias;
                         if (Citations.PROJ == candidate.getAuthority()) {
+                            if (info instanceof DefaultOperationMethod) {
+                                projectedCRS = true;
+                            }
                             return candidate.getCode();
                         }
                     }
@@ -280,9 +244,9 @@ public class PROJFormatter {
                     if (scope != null) {
                         if (title.equalsIgnoreCase(scope.toString())) {
                             if (info instanceof Datum) {
-                                setDatumProvided(true);
+                                datumProvided = true;
                             } else if (info instanceof Ellipsoid) {
-                                setEllipsoidProvided(true);
+                                ellipsoidProvided = true;
                             }
                             return alias.tip().toString();
                         }
@@ -292,14 +256,14 @@ public class PROJFormatter {
             if (info instanceof Ellipsoid) {
                 String projAlias = PROJ_ALIASES.getEllipsoidAlias(info.getName().getCode());
                 if (projAlias != null)  {
-                    setEllipsoidProvided(true);
+                    ellipsoidProvided = true;
                     return projAlias;
                 }
             }
             if (info instanceof PrimeMeridian) {
                 String projAlias = PROJ_ALIASES.getPrimeMeridianAlias(info.getName().getCode());
                 if (projAlias != null)  {
-                    setPrimeMeridianProvided(true);
+                    primeMeridianProvided = true;
                     return projAlias;
                 }
             }
@@ -331,7 +295,6 @@ public class PROJFormatter {
         }
         linearUnit = null;
         angularUnit = null;
-        warning = null;
         datumProvided = false;
         ellipsoidProvided = false;
         primeMeridianProvided = false;
@@ -416,13 +379,14 @@ public class PROJFormatter {
     }
 
     public String toPROJ(IdentifiedObject identifiedObject) {
-        if (identifiedObject instanceof org.geotools.referencing.util.PROJFormattable) {
-            org.geotools.referencing.util.PROJFormattable formattable =
-                    ((org.geotools.referencing.util.PROJFormattable) identifiedObject);
+        if (identifiedObject instanceof PROJFormattable) {
+            PROJFormattable formattable =
+                    ((PROJFormattable) identifiedObject);
             formattable.formatPROJ(this);
             refineDefinition(identifiedObject);
             return buffer.toString();
+        } else {
+            throw new UnsupportedOperationException("PROJ String is not supported for this type of object: " + identifiedObject);
         }
-        return "";
     }
 }

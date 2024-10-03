@@ -1,20 +1,17 @@
 package org.geotools.gce.geotiff;
 
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.PrintWriter;
 import org.geotools.api.referencing.FactoryException;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.referencing.CRS;
 import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.util.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormattable;
 
 public class PROJTest {
 
     public static void main(String[] args) {
         //int[] codes = new int[]{32632};
         //int[] codes = new int[] {3728};
-        int[] codes = new int[] {5340};
+        int[] codes = new int[] {5514};
         PROJFormatter formatter = new PROJFormatter();
         for (int code : codes) {
             formatter.clear();
