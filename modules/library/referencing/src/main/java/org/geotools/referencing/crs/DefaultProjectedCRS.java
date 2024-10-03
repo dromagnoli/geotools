@@ -43,7 +43,7 @@ import org.geotools.api.referencing.operation.Projection;
 import org.geotools.referencing.operation.DefaultOperationMethod;
 import org.geotools.referencing.operation.DefiningConversion;
 import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.util.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.SuppressFBWarnings;
 
@@ -306,7 +306,6 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS
 
     @Override
     public String formatPROJ(PROJFormatter formatter) {
-        formatter.setProjectedCRS(true);
         final Ellipsoid ellipsoid = ((GeodeticDatum) datum).getEllipsoid();
         @SuppressWarnings("unchecked") // Formatter.setLinearUnit(...) will do the check for us.
         final Unit<Length> unit = (Unit) getUnit();
@@ -317,11 +316,11 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS
         formatter.setAngularUnit(
                 DefaultGeographicCRS.getAngularUnit(baseCRS.getCoordinateSystem()));
         OperationMethod method = conversionFromBase.getMethod();
-        if (method instanceof org.geotools.referencing.util.PROJFormattable) {
-            formatter.append((org.geotools.referencing.util.PROJFormattable) method);
+        if (method instanceof PROJFormattable) {
+            formatter.append((PROJFormattable) method);
         }
-        if (baseCRS instanceof org.geotools.referencing.util.PROJFormattable)
-            formatter.append((org.geotools.referencing.util.PROJFormattable) baseCRS);
+        if (baseCRS instanceof PROJFormattable)
+            formatter.append((PROJFormattable) baseCRS);
         for (final GeneralParameterValue param : conversionFromBase.getParameterValues().values()) {
             final GeneralParameterDescriptor desc = param.getDescriptor();
             String name;
@@ -353,6 +352,8 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS
             if (dir0==AxisDirection.WEST && dir1==AxisDirection.SOUTH) {
                 formatter.append(" +axis=wsu");
 
+            } else if (dir0==AxisDirection.SOUTH && dir1==AxisDirection.WEST) {
+                formatter.append(" +axis=swu");
             }
         }
         formatter.setAngularUnit(angularUnit);

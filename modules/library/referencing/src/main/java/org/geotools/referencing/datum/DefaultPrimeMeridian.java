@@ -26,11 +26,10 @@ import javax.measure.quantity.Angle;
 import org.geotools.api.referencing.datum.PrimeMeridian;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.util.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
 import si.uom.NonSI;
-import si.uom.SI;
 
 /**
  * A prime meridian defines the origin from which longitude values are determined. The {@link

@@ -37,7 +37,7 @@ import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.matrix.XMatrix;
 import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.util.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormattable;
 import org.geotools.referencing.wkt.Formatter;
 
 /**
@@ -421,10 +421,8 @@ public class DefaultGeodeticDatum extends AbstractDatum implements GeodeticDatum
 
     @Override
     public String formatPROJ(final PROJFormatter formatter) {
-        // Do NOT invokes the super-class method, because
-        // horizontal datum do not write the datum type.
-        if (ellipsoid instanceof org.geotools.referencing.util.PROJFormattable && !formatter.isDatumProvided()) {
-            formatter.append((org.geotools.referencing.util.PROJFormattable) ellipsoid);
+        if (ellipsoid instanceof PROJFormattable && !formatter.isDatumProvided()) {
+            formatter.append((PROJFormattable) ellipsoid);
         }
 
        /* if (bursaWolf != null) {

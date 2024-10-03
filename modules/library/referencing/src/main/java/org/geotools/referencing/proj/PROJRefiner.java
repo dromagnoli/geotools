@@ -13,6 +13,13 @@ import java.util.Properties;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * PROJ supports 7425 CRS definitions.
+ * Some of them seems having specific fields that cannot be easily
+ * inferred by the GeoTools referencing entities, so this class
+ * aims to refine the PROJ String by remapping some fields,
+ * applying sorting and appending fixed string to the output.
+ */
 public class PROJRefiner {
 
     // A class to hold regex and its replacement
@@ -26,27 +33,35 @@ public class PROJRefiner {
         }
     }
 
-    private static final String REFINEMENTS_FILE = "ProjRefinements.txt";
+    private static final String REFINEMENTS_FILE = "PROJRefinements.txt";
 
     private Properties properties;
 
-    private String globalUpdates = "";
+    /** These are Strings that need to be globally added to each PROJ String */
+    private String globalAdditions = "";
 
+    /** Map of needed refinement for EPSG code */
     private Map<String, List<Refinement>> epsgRefinements;
-    private List<String> projOrder;
+
+    private List<Refinement> unitRefinements;
+
+    /** List of PROJ keys sorted in a certain way */
+    private List<String> projKeysOrder;
 
     public PROJRefiner() {
         properties = new Properties();
-        projOrder = new ArrayList<>();
+        projKeysOrder = new ArrayList<>();
+        unitRefinements = new ArrayList<>();
         epsgRefinements = new HashMap<>();
 
         URL aliasURL = PROJRefiner.class.getResource(REFINEMENTS_FILE);
 
         try (InputStream input = aliasURL.openStream()) {
             properties.load(input);
-            if (properties.containsKey("global_updates")) {
-                globalUpdates = properties.getProperty("global_updates");
+            if (properties.containsKey("global.additions")) {
+                globalAdditions = properties.getProperty("global.additions");
             }
+            loadUnitRefinements();
             loadProjOrder();
             loadRefinements();
 
@@ -56,17 +71,25 @@ public class PROJRefiner {
     }
 
     private void loadProjOrder() {
-        String order = properties.getProperty("proj_order");
+        String order = properties.getProperty("proj.order");
         if (order != null) {
-            projOrder.addAll(Arrays.asList(order.split(",")));
+            projKeysOrder.addAll(Arrays.asList(order.split(",")));
         }
     }
-    private void loadRefinements() {
 
-        for (int i = 1; properties.containsKey("regex" + i); i++) {
-            String regex = properties.getProperty("regex" + i);
-            String replacement = properties.getProperty("replacement" + i);
-            String codes = properties.getProperty("codes" + i);
+    private void loadUnitRefinements() {
+        for (int i = 1; properties.containsKey("unit.regex." + i); i++) {
+            String regex = properties.getProperty("unit.regex." + i);
+            String replacement = properties.getProperty("unit.replacement." + i);
+            unitRefinements.add(new Refinement(regex, replacement));
+        }
+    }
+
+    private void loadRefinements() {
+        for (int i = 1; properties.containsKey("regex." + i); i++) {
+            String regex = properties.getProperty("regex." + i);
+            String replacement = properties.getProperty("replacement." + i);
+            String codes = properties.getProperty("codes." + i);
 
             if (codes != null) {
                 String[] codeArray = codes.split(",");
@@ -93,12 +116,20 @@ public class PROJRefiner {
         }
     }
 
+
+
     // Apply global updates and regex replacements for specific EPSG codes
     public String refine(String projString, String epsgCode) {
         // Apply global updates
         StringBuilder updatedProjString = new StringBuilder(projString);
-        updatedProjString.append(" " + globalUpdates);
+        updatedProjString.append(" " + globalAdditions);
 
+        // First refine the units
+        for (Refinement refinement : unitRefinements) {
+            Pattern pattern = Pattern.compile(refinement.regex);
+            Matcher matcher = pattern.matcher(updatedProjString);
+            updatedProjString = new StringBuilder(matcher.replaceAll(refinement.replacement));
+        }
         List<Refinement> refinements = epsgRefinements.get(epsgCode);
         if (refinements != null) {
             for (Refinement refinement : refinements) {
@@ -107,6 +138,7 @@ public class PROJRefiner {
                 updatedProjString = new StringBuilder(matcher.replaceAll(refinement.replacement));
             }
         }
+
         return sortProjString(updatedProjString.toString().replaceAll("\\s+", " "));
     }
 
@@ -126,7 +158,7 @@ public class PROJRefiner {
 
         // Reorder components according to the defined order
         StringBuilder sortedProjString = new StringBuilder();
-        for (String key : projOrder) {
+        for (String key : projKeysOrder) {
             if (projComponents.containsKey("+" + key)) {
                 sortedProjString.append("+").append(key);
                 String value = projComponents.get("+" + key);
@@ -139,7 +171,7 @@ public class PROJRefiner {
 
         // Add any remaining components not in the order
         for (String key : projComponents.keySet()) {
-            if (!projOrder.contains(key.substring(1))) {
+            if (!projKeysOrder.contains(key.substring(1))) {
                 sortedProjString.append(key).append("=").append(projComponents.get(key)).append(" ");
             }
         }
