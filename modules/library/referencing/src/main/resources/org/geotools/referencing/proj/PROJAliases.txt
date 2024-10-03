@@ -1,30 +1,30 @@
 [EllipsoidAliases]
-EPSG;PROJ
 Bessel 1841;bessel
 Bessel Namibia (GLM);bess_nam
 Clarke 1966;clrk66
 Clarke 1866 Authalic Sphere;sphere
 Clarke 1866;clrk66
 Clarke 1880 (IGN);clrk80ign
-
+Everest 1830 (RSO 1969);evrst69
+Everest 1830 Modified;evrst48
 GRS 1980;GRS80
 GRS 1967;GRS67
 GRS 1967 Modified;aust_SA
-WGS 72;WGS72
 Krassowsky 1940;krass
 International 1924;intl
-Everest 1830 (RSO 1969);evrst69
-Everest 1830 Modified;evrst48
-
+WGS 72;WGS72
 
 [PrimeMeridianAliases]
+Athens;athens
 Bern;bern
-Lisbon;lisbon
-Rome;rome
+Bogota;bogota
+Brussels;brussels
+Ferro;ferro
 Jakarta;jakarta
+Lisbon;lisbon
 Oslo;oslo
 Paris;paris
-Ferro;ferro
+Rome;rome
 Stockholm;stockholm
-Brussels;brussels
-Athens;athens
+Madrid;-3.687375
+Paris RGS;2.33720833333333
