@@ -29,8 +29,8 @@ import net.sf.geographiclib.GeodesicMask;
 import org.geotools.api.referencing.datum.Ellipsoid;
 import org.geotools.metadata.i18n.ErrorKeys;
 import org.geotools.referencing.AbstractIdentifiedObject;
-import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.proj.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
 import si.uom.SI;
@@ -514,7 +514,6 @@ public class DefaultEllipsoid extends AbstractIdentifiedObject
                     formatter.append(" +rf=" + ivf + " ");
                 }
             }
-
         }
         return "";
     }

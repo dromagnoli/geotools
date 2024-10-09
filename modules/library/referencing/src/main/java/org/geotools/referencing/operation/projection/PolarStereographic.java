@@ -652,7 +652,7 @@ public class PolarStereographic extends Stereographic {
                         new NamedIdentifier[] {
                             new NamedIdentifier(Citations.ESRI, "Standard_Parallel_1"),
                             new NamedIdentifier(Citations.EPSG, "Latitude of standard parallel"),
-                                new NamedIdentifier(Citations.PROJ, "lat_1")
+                            new NamedIdentifier(Citations.PROJ, "lat_1")
                         },
                         90,
                         -90,
@@ -723,8 +723,7 @@ public class PolarStereographic extends Stereographic {
                         new NamedIdentifier[] {
                             new NamedIdentifier(Citations.ESRI, "Standard_Parallel_1"),
                             new NamedIdentifier(Citations.EPSG, "Latitude of standard parallel"),
-                                new NamedIdentifier(Citations.PROJ, "lat_1")
-
+                            new NamedIdentifier(Citations.PROJ, "lat_1")
                         },
                         -90,
                         -90,

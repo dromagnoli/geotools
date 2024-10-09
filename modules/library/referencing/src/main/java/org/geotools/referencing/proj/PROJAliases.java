@@ -8,8 +8,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A PROJ Dedicated Aliases Lookup that allows to retrieve PROJ
- * Aliases for most common EPSG Ellipsoids and PrimeMeridians
+ * A PROJ Dedicated Aliases Lookup that allows to retrieve PROJ Aliases for most common EPSG
+ * Ellipsoids and PrimeMeridians
  */
 public class PROJAliases {
 
@@ -22,7 +22,8 @@ public class PROJAliases {
         URL aliasURL = PROJAliases.class.getResource(ALIAS_TABLE);
 
         try {
-            try (BufferedReader br = new BufferedReader(new InputStreamReader(aliasURL.openStream()))) {
+            try (BufferedReader br =
+                    new BufferedReader(new InputStreamReader(aliasURL.openStream()))) {
                 String line;
                 Map<String, String> currentMap = null;
 

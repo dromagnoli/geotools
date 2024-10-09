@@ -9,7 +9,6 @@ import java.util.Locale;
 import javax.measure.Unit;
 import javax.measure.quantity.Angle;
 import javax.measure.quantity.Length;
-
 import org.geotools.api.metadata.Identifier;
 import org.geotools.api.metadata.citation.Citation;
 import org.geotools.api.parameter.GeneralParameterValue;
@@ -28,12 +27,8 @@ import org.geotools.metadata.math.XMath;
 import org.geotools.referencing.operation.DefaultOperationMethod;
 import si.uom.SI;
 import tech.units.indriya.AbstractUnit;
-import tech.units.indriya.function.RationalConverter;
-import tech.units.indriya.unit.TransformedUnit;
 
-/**
- * Format {@link PROJFormattable} objects as PROJ strings
- */
+/** Format {@link PROJFormattable} objects as PROJ strings */
 public class PROJFormatter {
 
     private StringBuffer buffer;
@@ -55,9 +50,9 @@ public class PROJFormatter {
 
     private final FieldPosition dummy = new FieldPosition(0);
 
-    private final static PROJAliases PROJ_ALIASES = new PROJAliases();
+    private static final PROJAliases PROJ_ALIASES = new PROJAliases();
 
-    private final static PROJRefiner PROJ_REFINER = new PROJRefiner();
+    private static final PROJRefiner PROJ_REFINER = new PROJRefiner();
 
     private boolean projectedCRS = false;
 
@@ -67,9 +62,7 @@ public class PROJFormatter {
 
     private boolean primeMeridianProvided = false;
 
-    /**
-     * Creates a new instance of the PROJFormatter.
-     */
+    /** Creates a new instance of the PROJFormatter. */
     public PROJFormatter() {
         numberFormat = NumberFormat.getNumberInstance(Locale.US);
         numberFormat.setGroupingUsed(false);
@@ -81,7 +74,9 @@ public class PROJFormatter {
     /** The object to use for formatting numbers. */
     private NumberFormat numberFormat;
 
-    public boolean isProjectedCRS() { return projectedCRS; }
+    public boolean isProjectedCRS() {
+        return projectedCRS;
+    }
 
     public boolean isDatumProvided() {
         return datumProvided;
@@ -91,11 +86,8 @@ public class PROJFormatter {
         return ellipsoidProvided;
     }
 
-    public boolean isPrimeMeridianProvided() {return primeMeridianProvided;}
-
-    private void refineDefinition(IdentifiedObject identifiedObject) {
-        String definition = PROJ_REFINER.refine(buffer.toString(), identifiedObject.getIdentifiers().iterator().next().getCode());
-        buffer = new StringBuffer(definition);
+    public boolean isPrimeMeridianProvided() {
+        return primeMeridianProvided;
     }
 
     public void append(final PROJFormattable formattable) {
@@ -164,7 +156,7 @@ public class PROJFormatter {
                 symbol = unit.toString();
             }
             buffer.append(symbol);
-         }
+        }
     }
 
     /**
@@ -255,14 +247,14 @@ public class PROJFormatter {
             }
             if (info instanceof Ellipsoid) {
                 String projAlias = PROJ_ALIASES.getEllipsoidAlias(info.getName().getCode());
-                if (projAlias != null)  {
+                if (projAlias != null) {
                     ellipsoidProvided = true;
                     return projAlias;
                 }
             }
             if (info instanceof PrimeMeridian) {
                 String projAlias = PROJ_ALIASES.getPrimeMeridianAlias(info.getName().getCode());
-                if (projAlias != null)  {
+                if (projAlias != null) {
                     primeMeridianProvided = true;
                     return projAlias;
                 }
@@ -368,7 +360,7 @@ public class PROJFormatter {
     /** Formats a floating point number. */
     private void format(final double number) {
         if (number == Math.floor(number)) {
-            format((int)number);
+            format((int) number);
         } else {
             numberFormat.format(number, buffer, dummy);
         }
@@ -380,13 +372,16 @@ public class PROJFormatter {
 
     public String toPROJ(IdentifiedObject identifiedObject) {
         if (identifiedObject instanceof PROJFormattable) {
-            PROJFormattable formattable =
-                    ((PROJFormattable) identifiedObject);
-            formattable.formatPROJ(this);
-            refineDefinition(identifiedObject);
-            return buffer.toString();
+            ((PROJFormattable) identifiedObject).formatPROJ(this);
+            String refinedString =
+                    PROJ_REFINER.refine(
+                            buffer.toString(),
+                            identifiedObject.getIdentifiers().iterator().next().getCode());
+            buffer = new StringBuffer(refinedString);
+            return refinedString;
         } else {
-            throw new UnsupportedOperationException("PROJ String is not supported for this type of object: " + identifiedObject);
+            throw new UnsupportedOperationException(
+                    "PROJ String is not supported for this type of object: " + identifiedObject);
         }
     }
 }

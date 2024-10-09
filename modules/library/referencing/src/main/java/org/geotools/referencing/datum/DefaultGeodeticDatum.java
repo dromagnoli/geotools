@@ -36,8 +36,8 @@ import org.geotools.metadata.iso.citation.Citations;
 import org.geotools.referencing.AbstractIdentifiedObject;
 import org.geotools.referencing.NamedIdentifier;
 import org.geotools.referencing.operation.matrix.XMatrix;
-import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.proj.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.wkt.Formatter;
 
 /**
@@ -425,7 +425,7 @@ public class DefaultGeodeticDatum extends AbstractDatum implements GeodeticDatum
             formatter.append((PROJFormattable) ellipsoid);
         }
 
-       /* if (bursaWolf != null) {
+        /* if (bursaWolf != null) {
             for (final BursaWolfParameters transformation : bursaWolf) {
                 if (isWGS84(transformation.targetDatum)) {
                     formatter.append(transformation);
