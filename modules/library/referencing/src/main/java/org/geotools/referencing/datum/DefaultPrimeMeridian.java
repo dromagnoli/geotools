@@ -25,8 +25,8 @@ import javax.measure.Unit;
 import javax.measure.quantity.Angle;
 import org.geotools.api.referencing.datum.PrimeMeridian;
 import org.geotools.referencing.AbstractIdentifiedObject;
-import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.proj.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.Utilities;
 import si.uom.NonSI;
@@ -40,7 +40,8 @@ import si.uom.NonSI;
  * @author Martin Desruisseaux (IRD)
  * @since 2.1
  */
-public class DefaultPrimeMeridian extends AbstractIdentifiedObject implements PrimeMeridian, PROJFormattable {
+public class DefaultPrimeMeridian extends AbstractIdentifiedObject
+        implements PrimeMeridian, PROJFormattable {
     /** Serial number for interoperability with different versions. */
     private static final long serialVersionUID = 541978454643213305L;;
 

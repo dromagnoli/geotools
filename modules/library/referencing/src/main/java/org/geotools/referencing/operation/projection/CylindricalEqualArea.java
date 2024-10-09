@@ -204,7 +204,7 @@ public class CylindricalEqualArea extends MapProjection {
                             new NamedIdentifier(
                                     Citations.GEOTOOLS,
                                     "Lambert Cylindrical Equal Area (Spherical)"),
-                                new NamedIdentifier(Citations.PROJ, "cea")
+                            new NamedIdentifier(Citations.PROJ, "cea")
                         },
                         Provider.getParameterDescriptors());
 

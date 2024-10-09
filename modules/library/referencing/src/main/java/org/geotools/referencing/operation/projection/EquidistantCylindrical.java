@@ -279,7 +279,7 @@ public class EquidistantCylindrical extends MapProjection {
                                     Citations.GEOTOOLS,
                                     Vocabulary.formatInternational(
                                             VocabularyKeys.EQUIDISTANT_CYLINDRICAL_PROJECTION)),
-                                new NamedIdentifier(Citations.PROJ, "eqc")
+                            new NamedIdentifier(Citations.PROJ, "eqc")
                         },
                         new ParameterDescriptor[] {
                             SEMI_MAJOR,

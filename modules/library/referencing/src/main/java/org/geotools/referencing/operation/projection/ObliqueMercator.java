@@ -687,7 +687,6 @@ public class ObliqueMercator extends MapProjection {
                             new NamedIdentifier(Citations.ESRI, "Longitude_Of_Center"),
                             new NamedIdentifier(Citations.GEOTIFF, "CenterLong"),
                             new NamedIdentifier(Citations.PROJ, "lon_0")
-
                         },
                         0,
                         -180,

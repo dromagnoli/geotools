@@ -42,8 +42,8 @@ import org.geotools.api.referencing.operation.OperationMethod;
 import org.geotools.api.referencing.operation.Projection;
 import org.geotools.referencing.operation.DefaultOperationMethod;
 import org.geotools.referencing.operation.DefiningConversion;
-import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.proj.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormatter;
 import org.geotools.referencing.wkt.Formatter;
 import org.geotools.util.SuppressFBWarnings;
 
@@ -319,8 +319,7 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS
         if (method instanceof PROJFormattable) {
             formatter.append((PROJFormattable) method);
         }
-        if (baseCRS instanceof PROJFormattable)
-            formatter.append((PROJFormattable) baseCRS);
+        if (baseCRS instanceof PROJFormattable) formatter.append((PROJFormattable) baseCRS);
         for (final GeneralParameterValue param : conversionFromBase.getParameterValues().values()) {
             final GeneralParameterDescriptor desc = param.getDescriptor();
             String name;
@@ -349,10 +348,10 @@ public class DefaultProjectedCRS extends AbstractDerivedCRS
         if (dimension >= 2) {
             AxisDirection dir0 = coordinateSystem.getAxis(0).getDirection();
             AxisDirection dir1 = coordinateSystem.getAxis(1).getDirection();
-            if (dir0==AxisDirection.WEST && dir1==AxisDirection.SOUTH) {
+            if (dir0 == AxisDirection.WEST && dir1 == AxisDirection.SOUTH) {
                 formatter.append(" +axis=wsu");
 
-            } else if (dir0==AxisDirection.SOUTH && dir1==AxisDirection.WEST) {
+            } else if (dir0 == AxisDirection.SOUTH && dir1 == AxisDirection.WEST) {
                 formatter.append(" +axis=swu");
             }
         }

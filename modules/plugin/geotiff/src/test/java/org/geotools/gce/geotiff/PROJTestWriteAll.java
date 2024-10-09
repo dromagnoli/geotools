@@ -1,14 +1,13 @@
 package org.geotools.gce.geotiff;
 
-import org.geotools.api.referencing.FactoryException;
-import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
-import org.geotools.referencing.CRS;
-import org.geotools.referencing.proj.PROJFormatter;
-import org.geotools.referencing.proj.PROJFormattable;
-
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import org.geotools.api.referencing.FactoryException;
+import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
+import org.geotools.referencing.CRS;
+import org.geotools.referencing.proj.PROJFormattable;
+import org.geotools.referencing.proj.PROJFormatter;
 
 public class PROJTestWriteAll {
 
