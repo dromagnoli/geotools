@@ -34,8 +34,12 @@ The database in the zip file is a HSQL version of the official EPSG database.
     report_date   DATE NOT NULL,
     action        VARCHAR,
     UNIQUE(CHANGE_ID) );
+
 7) Update ThreadedHsqlEpsgFactory.VERSION to the current version
 8) Run the DatabaseCreationScript.java
+   - if you get a similar exception
+   Exception in thread "main" java.sql.SQLSyntaxErrorException: unknown token:
+   when creating the DB, make sure the files are saved as UTF-8 instead of UTF-8-BOM
 9) Check the EPSG.zip file has been updated
 10) Run the build with extensive tests in the epsg-hsql module:
     mvn clean install -Pextensive.tests

@@ -24,7 +24,8 @@ CREATE INDEX PARAMETER_VALUES                 ON EPSG_COORDOPERATIONPARAMVALUE  
 CREATE INDEX PARAMETER_VALUE_CODE             ON EPSG_COORDOPERATIONPARAMVALUE  (PARAMETER_CODE);
 CREATE INDEX PATH_CONCAT_OPERATION_CODE       ON EPSG_COORDOPERATIONPATH        (CONCAT_OPERATION_CODE);
 CREATE INDEX SUPERSESSION_OBJECT_CODE         ON EPSG_SUPERSESSION              (OBJECT_CODE);
-
+CREATE INDEX USAGE_CODE                       ON EPSG_USAGE                     (USAGE_CODE);
+CREATE INDEX USAGE_EXTENT_CODE                ON EPSG_USAGE                     (EXTENT_CODE);
 
 --------------------------------------------------------------------------------
 -- Index for queries used by DirectEpsgFactory.createFoo(epsgCode) methods.   --

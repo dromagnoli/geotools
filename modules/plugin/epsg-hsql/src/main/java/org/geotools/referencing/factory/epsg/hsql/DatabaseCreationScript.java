@@ -64,6 +64,7 @@ public class DatabaseCreationScript {
          * (e.g. "%20" instead of spaces).
          */
         final JDBCDataSource source = new JDBCDataSource();
+
         final StringBuilder url = new StringBuilder(ThreadedHsqlEpsgFactory.PREFIX);
         final String path = directory.getAbsolutePath().replace(File.separatorChar, '/');
         if (path.length() == 0 || path.charAt(0) != '/') {
@@ -84,8 +85,10 @@ public class DatabaseCreationScript {
          * Compactor class in this package.
          */
         System.out.println("Creating the EPSG database");
-        try (Connection connection = source.getConnection();
-                Statement statement = connection.createStatement()) {
+        // try (Connection conn = DriverManager.getConnection(url.toString(),"SA", "");
+        try (Connection conn = source.getConnection();
+                Statement statement = conn.createStatement()) {
+
             // read and execute the scripts that make up the database
             executeScript(new File(directory, "EPSG_Tables.sql"), statement);
             executeScript(new File(directory, "EPSG_Data.sql"), statement);
@@ -106,14 +109,14 @@ public class DatabaseCreationScript {
          * file (among others, the version and make it read only)
          *
          */
-        try (InputStream propertyIn = new FileInputStream(propertyFile);
-                OutputStream out = new FileOutputStream(propertyFile); ) {
+        try (InputStream propertyIn = new FileInputStream(propertyFile)) {
             final Properties properties = new Properties();
             properties.load(propertyIn);
             properties.put("epsg.version", ThreadedHsqlEpsgFactory.VERSION.toString());
             properties.put("readonly", "true");
-
-            properties.store(out, "EPSG database on HSQL");
+            try (OutputStream out = new FileOutputStream(propertyFile)) {
+                properties.store(out, "EPSG database on HSQL");
+            }
         }
 
         /*
@@ -142,7 +145,6 @@ public class DatabaseCreationScript {
         databaseFile.delete();
         backupFile.delete();
         scriptFile.delete();
-
         System.out.println("Done. The zipped database file is available at " + zipFile.getAbsolutePath());
     }
 
@@ -152,8 +154,10 @@ public class DatabaseCreationScript {
         try {
             // first read in the tables
             reader = new SqlScriptReader(new FileReader(scriptFile));
+            // int iLine = 1;
             while (reader.hasNext()) {
                 String sql = reader.next();
+                // System.out.println(String.format("Line: %d - Script: %s", iLine++, sql));
                 statement.execute(sql);
             }
         } finally {
