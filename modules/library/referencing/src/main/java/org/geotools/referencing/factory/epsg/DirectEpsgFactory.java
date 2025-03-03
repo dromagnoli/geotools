@@ -76,6 +76,7 @@ import org.geotools.api.referencing.crs.GeocentricCRS;
 import org.geotools.api.referencing.crs.GeographicCRS;
 import org.geotools.api.referencing.crs.ProjectedCRS;
 import org.geotools.api.referencing.crs.SingleCRS;
+import org.geotools.api.referencing.crs.VerticalCRS;
 import org.geotools.api.referencing.cs.AxisDirection;
 import org.geotools.api.referencing.cs.CSAuthorityFactory;
 import org.geotools.api.referencing.cs.CSFactory;
@@ -291,9 +292,6 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
     private static final int ROTATION_FRAME_CODE = 9607;
     /** Dummy operation to ignore. */
     private static final int DUMMY_OPERATION = 1;
-
-    private static final Set<String> ENSEMBLE_SET =
-            Set.of("World Geodetic System 1984", "European Terrestrial Reference System 1989");
 
     /**
      * List of tables and columns to test for codes values. This table is used by the {@link #createObject} method in
@@ -911,7 +909,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
     }
 
     private String remapToEnsemble(String table, String identifier) {
-        if ("[Datum]".equals(table) && ENSEMBLE_SET.contains(identifier)) {
+        if ("[Datum]".equals(table) && EnsembleDefinition.hasId(identifier)) {
             return identifier + " ensemble";
         }
         return identifier;
@@ -1443,10 +1441,10 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                         + " FROM [Coordinate_Operation] AS CO"
                         + " INNER JOIN [Coordinate Reference System] AS CRS2"
                         + " ON CO.TARGET_CRS_CODE = CRS2.COORD_REF_SYS_CODE"
-                        + " LEFT JOIN EPSG_USAGE U"
+                        + " JOIN EPSG_USAGE U"
                         + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                         + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
-                        + " LEFT JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
+                        + " JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
                         + " WHERE CO.COORD_OP_METHOD_CODE >= "
                         + BURSA_WOLF_MIN_CODE
                         + " AND CO.COORD_OP_METHOD_CODE <= "
@@ -1577,7 +1575,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                             + " d.ELLIPSOID_CODE," // Only for geodetic type
                             + " d.PRIME_MERIDIAN_CODE" // Only for geodetic type
                             + " FROM [Datum] d "
-                            + " LEFT JOIN EPSG_USAGE u"
+                            + " JOIN EPSG_USAGE u"
                             + " ON u.OBJECT_TABLE_NAME = '[Datum]'"
                             + " AND u.OBJECT_CODE = d.DATUM_CODE"
                             + " WHERE d.DATUM_CODE = ?");
@@ -1614,7 +1612,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                      *     'createEllipsoid' and 'createPrimeMeridian'), it must protect 'properties'
                      *     from changes.
                      *
-                     *   - Because 'createBursaWolfParameters' may invokes 'createDatum' recursively,
+                     *   - Because 'createBursaWolfParameters' may invoke 'createDatum' recursively,
                      *     we must close the result set if Bursa-Wolf parameters are found. In this
                      *     case, we lost our paranoiac check for duplication.
                      */
@@ -1633,32 +1631,30 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                         datum = factory.createVerticalDatum(properties, VerticalDatumType.GEOIDAL);
                     } else if (type.equals("engineering")) {
                         datum = factory.createEngineeringDatum(properties);
-                    } else if (type.equals("ensemble") /* || type.equals("dynamic geodetic")*/) {
+                    } else if (type.equals("ensemble")) {
                         properties = new HashMap<>(properties);
                         Ellipsoid ellipsoid;
                         PrimeMeridian meridian;
-                        /*if (type.equals("dynamic geodetic")) {
-                            final BursaWolfParameters[] param = createBursaWolfParameters(primaryKey, result);
-                            if (param != null) {
-                                exit = true;
-                                properties.put(DefaultGeodeticDatum.BURSA_WOLF_KEY, param);
+                        EnsembleDefinition def = EnsembleDefinition.getEnsemble(epsg);
+                        if (def != null) {
+                            properties.put("name", def.getName());
+                            if (!def.isVertical()) {
+                                ellipsoid = buffered.createEllipsoid(def.getEllipsoidCode());
+                                meridian = buffered.createPrimeMeridian(def.getPrimeMeridianCode());
+                                final BursaWolfParameters[] param = createBursaWolfParameters(primaryKey, result);
+                                if (param != null) {
+                                    exit = true;
+                                    properties.put(DefaultGeodeticDatum.BURSA_WOLF_KEY, param);
+                                }
+                                datum = factory.createGeodeticDatum(properties, ellipsoid, meridian);
+                            } else {
+                                properties.put("identifiers", new NamedIdentifier(Citations.EPSG, def.getIdentifierAuthority()));
+                                datum = factory.createVerticalDatum(properties,VerticalDatumType.GEOIDAL);
                             }
-                        }*/
-                        switch (epsg) {
-                            case "6326":
-                                properties.put("name", "World Geodetic System 1984");
-                                ellipsoid = buffered.createEllipsoid("7030");
-                                meridian = buffered.createPrimeMeridian("8901");
-                                datum = factory.createGeodeticDatum(properties, ellipsoid, meridian);
-                                break;
-                            case "6258":
-                                properties.put("name", "European Terrestrial Reference System 1989");
-                                ellipsoid = buffered.createEllipsoid("7019");
-                                meridian = buffered.createPrimeMeridian("8901");
-                                datum = factory.createGeodeticDatum(properties, ellipsoid, meridian);
-                                break;
-                            default:
-                                datum = null;
+
+
+                        } else {
+                            datum = null;
                         }
 
                     } else {
@@ -1990,7 +1986,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                             + " c.CMPD_HORIZCRS_CODE," // For CompoundCRS only
                             + " c.CMPD_VERTCRS_CODE" // For CompoundCRS only
                             + " FROM [Coordinate Reference System] c "
-                            + " LEFT JOIN EPSG_USAGE u "
+                            + " JOIN EPSG_USAGE u "
                             + " ON u.OBJECT_TABLE_NAME = '[Coordinate Reference System]'"
                             + " AND u.OBJECT_CODE = c.COORD_REF_SYS_CODE"
                             + " WHERE COORD_REF_SYS_CODE = ?");
@@ -2060,11 +2056,27 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                      * ---------------------------------------------------------------------- */
                     else if (type.equalsIgnoreCase("vertical")) {
                         final String csCode = getString(result, 7, code);
-                        final String dmCode = getString(result, 8, code);
+                        String datumCode = result.getString(8);
                         final VerticalCS cs = buffered.createVerticalCS(csCode);
-                        final VerticalDatum datum = buffered.createVerticalDatum(dmCode);
-                        final Map<String, Object> properties = createProperties(name, epsg, area, scope, remarks);
-                        crs = factory.createVerticalCRS(properties, datum, cs);
+                        final VerticalDatum datum;
+                        if ( datumCode!= null) {
+                            final String dmCode = getString(result, 8, code);
+                            datum = buffered.createVerticalDatum(dmCode);
+                            final Map<String, Object> properties = createProperties(name, epsg, area, scope, remarks);
+                            crs = factory.createVerticalCRS(properties, datum, cs);
+                        } else {
+                            final String geoCode = getString(result, 9, code);
+                            result.close();
+                            // As part of the EPSG update for some vertical CRSs, they deleted datums and
+                            // added base CRS. Let's recompose it
+                            final Map<String, Object> properties = createProperties(name, epsg, area, scope, remarks);
+                            // Create the base VerticalCRS and extract the datum from there
+                            VerticalCRS baseCRS = buffered.createVerticalCRS(geoCode);
+                            datum = baseCRS.getDatum();
+                            // reassemble the VerticalCRS using datum and coordinateAxis
+                            crs = factory.createVerticalCRS(properties, datum, cs);
+                            exit = true;
+                        }
                     }
                     /* ----------------------------------------------------------------------
                      *   COMPOUND CRS
@@ -2620,19 +2632,19 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                             + " CO.COORD_OP_SCOPE,"
                             + " CO.REMARKS"
                             + " FROM [Coordinate_Operation] CO "
-                            + " LEFT JOIN EPSG_USAGE u"
+                            + " JOIN EPSG_USAGE u"
                             + " ON u.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                             + " AND u.OBJECT_CODE = CO.COORD_OP_CODE"
-                            + " LEFT JOIN [Extent] E on U.extent_code = E.extent_code"
+                            + " JOIN [Extent] E on U.extent_code = E.extent_code"
                             + " WHERE COORD_OP_CODE = ?"
                             + " ORDER BY ABS(CO.DEPRECATED), CO.COORD_OP_ACCURACY,"
+                            // In previous DB there was only 1 area for COORDINATE OPERATION.
+                            // With EPSG 11.0.31 they can be more. Let's limit to the one with bigger area
                             + " (BBOX_NORTH_BOUND_LAT - BBOX_SOUTH_BOUND_LAT) * "
                             + "(CASE WHEN BBOX_EAST_BOUND_LON > BBOX_WEST_BOUND_LON "
                             + "     THEN (BBOX_EAST_BOUND_LON - BBOX_WEST_BOUND_LON) "
                             + "     ELSE (360 - BBOX_WEST_BOUND_LON - BBOX_EAST_BOUND_LON) END) DESC,"
                             + " CO.COORD_OP_CODE DESC LIMIT 1");
-            // In previous DB there was only 1 area for COORDINATE OPERATION.
-            // With EPSG 11.0.31 they can more. Let's limit o the one with bigger area
 
             stmt.setInt(1, Integer.parseInt(primaryKey));
             try (ResultSet result = stmt.executeQuery()) {
@@ -2937,10 +2949,10 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                     key = "TransformationFromCRS";
                     sql = "SELECT CO.COORD_OP_CODE"
                             + " FROM [Coordinate_Operation] CO"
-                            + " LEFT JOIN EPSG_USAGE U"
+                            + " JOIN EPSG_USAGE U"
                             + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                             + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
-                            + " LEFT JOIN [Extent] E on U.extent_code = E.extent_code"
+                            + " JOIN [Extent] E on U.extent_code = E.extent_code"
                             + " WHERE SOURCE_CRS_CODE = ?"
                             + " AND TARGET_CRS_CODE = ?"
                             + " ORDER BY ABS(CO.DEPRECATED), CO.COORD_OP_ACCURACY,"

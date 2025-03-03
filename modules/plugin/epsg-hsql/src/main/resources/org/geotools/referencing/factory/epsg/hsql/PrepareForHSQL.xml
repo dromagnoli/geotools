@@ -53,7 +53,7 @@
     </replaceregexp>
 
     <replace file="EPSG_Tables.sql">
-      <!--replacefilter token="CREATE TABLE" value="CREATE CACHED TABLE"/!-->
+      <replacefilter token="CREATE TABLE" value="CREATE CACHED TABLE" />
       <replacefilter token="TEXT"         value="VARCHAR"            />
     </replace>
 

@@ -204,7 +204,7 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
             Vocabulary.formatInternational(VocabularyKeys.TRANSFORMATION_ACCURACY);
 
     private static final Set<String> ENSEMBLE_SET =
-            Set.of("World Geodetic System 1984", "European Terrestrial Reference System 1989");
+            Set.of("World Geodetic System 1984", "European Terrestrial Reference System 1989", "Dansk Vertikal Reference 1990");
 
     /**
      * The authority for this database. Will be created only when first needed. This authority will contains the
@@ -1173,10 +1173,10 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                         + " FROM [Coordinate_Operation] AS CO"
                         + " INNER JOIN [Coordinate Reference System] AS CRS2"
                         + " ON CO.TARGET_CRS_CODE = CRS2.COORD_REF_SYS_CODE"
-                        + " LEFT JOIN EPSG_USAGE U"
+                        + " JOIN EPSG_USAGE U"
                         + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                         + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
-                        + " LEFT JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
+                        + " JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
                         + " WHERE CO.COORD_OP_METHOD_CODE >= "
                         + BURSA_WOLF_MIN_CODE
                         + " AND CO.COORD_OP_METHOD_CODE <= "
@@ -1307,7 +1307,7 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                             + " d.ELLIPSOID_CODE," // Only for geodetic type
                             + " d.PRIME_MERIDIAN_CODE" // Only for geodetic type
                             + " FROM [Datum] d "
-                            + " LEFT JOIN EPSG_USAGE u"
+                            + " JOIN EPSG_USAGE u"
                             + " ON u.OBJECT_TABLE_NAME = '[Datum]'"
                             + " AND u.OBJECT_CODE = d.DATUM_CODE"
                             + " WHERE d.DATUM_CODE = ?");
@@ -1369,6 +1369,11 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                         Ellipsoid ellipsoid;
                         PrimeMeridian meridian;
                         switch (epsg) {
+                            case "1371":
+                                properties.put("name", "Dansk Vertikal Reference 1990");
+                                properties.put("identifiers", new NamedIdentifier(Citations.EPSG, "5206"));
+                                datum = factory.createVerticalDatum(properties,VerticalDatumType.GEOIDAL);
+                                break;
                             case "6326":
                                 properties.put("name", "World Geodetic System 1984");
                                 ellipsoid = createEllipsoid("7030");
@@ -1709,7 +1714,7 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                             + " c.CMPD_HORIZCRS_CODE," // For CompoundCRS only
                             + " c.CMPD_VERTCRS_CODE" // For CompoundCRS only
                             + " FROM [Coordinate Reference System] c "
-                            + " LEFT JOIN EPSG_USAGE u "
+                            + " JOIN EPSG_USAGE u "
                             + " ON u.OBJECT_TABLE_NAME = '[Coordinate Reference System]'"
                             + " AND u.OBJECT_CODE = c.COORD_REF_SYS_CODE"
                             + " WHERE COORD_REF_SYS_CODE = ?");
@@ -2265,10 +2270,10 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                             + " CO.COORD_OP_SCOPE,"
                             + " CO.REMARKS"
                             + " FROM [Coordinate_Operation] CO "
-                            + " LEFT JOIN EPSG_USAGE u"
+                            + " JOIN EPSG_USAGE u"
                             + " ON u.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                             + " AND u.OBJECT_CODE = CO.COORD_OP_CODE"
-                            + " LEFT JOIN [Extent] E on U.extent_code = E.extent_code"
+                            + " JOIN [Extent] E on U.extent_code = E.extent_code"
                             + " WHERE COORD_OP_CODE = ?"
                             + " ORDER BY ABS(CO.DEPRECATED), CO.COORD_OP_ACCURACY,"
                             + " (BBOX_NORTH_BOUND_LAT - BBOX_SOUTH_BOUND_LAT) * "
@@ -2574,7 +2579,7 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                     key = "TransformationFromCRS";
                     sql = "SELECT CO.COORD_OP_CODE"
                             + " FROM [Coordinate_Operation] CO"
-                            + " LEFT JOIN EPSG_USAGE U"
+                            + " JOIN EPSG_USAGE U"
                             + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                             + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
                             + " WHERE SOURCE_CRS_CODE = ?"
