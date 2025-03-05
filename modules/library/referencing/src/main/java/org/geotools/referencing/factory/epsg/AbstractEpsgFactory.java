@@ -1376,7 +1376,8 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                             if (!def.isVertical()) {
                                 ellipsoid = createEllipsoid(def.getEllipsoidCode());
                                 meridian = createPrimeMeridian(def.getPrimeMeridianCode());
-                                final BursaWolfParameters[] param = generateBursaWolfParameters(def.getDatumCode(), result);
+                                final BursaWolfParameters[] param =
+                                        generateBursaWolfParameters(def.getDatumCode(), result);
                                 if (param != null) {
                                     exit = true;
                                     properties.put(DefaultGeodeticDatum.BURSA_WOLF_KEY, param);
