@@ -203,8 +203,10 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
     private static final InternationalString TRANSFORMATION_ACCURACY =
             Vocabulary.formatInternational(VocabularyKeys.TRANSFORMATION_ACCURACY);
 
-    private static final Set<String> ENSEMBLE_SET =
-            Set.of("World Geodetic System 1984", "European Terrestrial Reference System 1989", "Dansk Vertikal Reference 1990");
+    private static final Set<String> ENSEMBLE_SET = Set.of(
+            "World Geodetic System 1984",
+            "European Terrestrial Reference System 1989",
+            "Dansk Vertikal Reference 1990");
 
     /**
      * The authority for this database. Will be created only when first needed. This authority will contains the
@@ -1176,7 +1178,7 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                         + " JOIN EPSG_USAGE U"
                         + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                         + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
-                        + " JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
+                        + " LEFT JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
                         + " WHERE CO.COORD_OP_METHOD_CODE >= "
                         + BURSA_WOLF_MIN_CODE
                         + " AND CO.COORD_OP_METHOD_CODE <= "
@@ -1368,26 +1370,27 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                         properties = new HashMap<>(properties);
                         Ellipsoid ellipsoid;
                         PrimeMeridian meridian;
-                        switch (epsg) {
-                            case "1371":
-                                properties.put("name", "Dansk Vertikal Reference 1990");
-                                properties.put("identifiers", new NamedIdentifier(Citations.EPSG, "5206"));
-                                datum = factory.createVerticalDatum(properties,VerticalDatumType.GEOIDAL);
-                                break;
-                            case "6326":
-                                properties.put("name", "World Geodetic System 1984");
-                                ellipsoid = createEllipsoid("7030");
-                                meridian = createPrimeMeridian("8901");
+                        EnsembleDefinition def = EnsembleDefinition.getEnsemble(epsg);
+                        if (def != null) {
+                            properties.put("name", def.getName());
+                            if (!def.isVertical()) {
+                                ellipsoid = createEllipsoid(def.getEllipsoidCode());
+                                meridian = createPrimeMeridian(def.getPrimeMeridianCode());
+                                final BursaWolfParameters[] param = generateBursaWolfParameters(def.getDatumCode(), result);
+                                if (param != null) {
+                                    exit = true;
+                                    properties.put(DefaultGeodeticDatum.BURSA_WOLF_KEY, param);
+                                }
                                 datum = factory.createGeodeticDatum(properties, ellipsoid, meridian);
-                                break;
-                            case "6258":
-                                properties.put("name", "European Terrestrial Reference System 1989");
-                                ellipsoid = createEllipsoid("7019");
-                                meridian = createPrimeMeridian("8901");
-                                datum = factory.createGeodeticDatum(properties, ellipsoid, meridian);
-                                break;
-                            default:
-                                datum = null;
+                            } else {
+                                properties.put(
+                                        "identifiers",
+                                        new NamedIdentifier(Citations.EPSG, def.getIdentifierAuthority()));
+                                datum = factory.createVerticalDatum(properties, VerticalDatumType.GEOIDAL);
+                            }
+
+                        } else {
+                            datum = null;
                         }
                     } else {
                         result.close();
@@ -2273,7 +2276,7 @@ public abstract class AbstractEpsgFactory extends AbstractCachedAuthorityFactory
                             + " JOIN EPSG_USAGE u"
                             + " ON u.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                             + " AND u.OBJECT_CODE = CO.COORD_OP_CODE"
-                            + " JOIN [Extent] E on U.extent_code = E.extent_code"
+                            + " LEFT JOIN [Extent] E on U.extent_code = E.extent_code"
                             + " WHERE COORD_OP_CODE = ?"
                             + " ORDER BY ABS(CO.DEPRECATED), CO.COORD_OP_ACCURACY,"
                             + " (BBOX_NORTH_BOUND_LAT - BBOX_SOUTH_BOUND_LAT) * "

@@ -11,14 +11,12 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.stream.Collectors;
-
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
 import org.geotools.referencing.CRS;
 
@@ -46,7 +44,7 @@ public class PropertyDumper {
         }
 
         try (FileOutputStream out = new FileOutputStream(filename);
-             Writer writer = new BufferedWriter(new OutputStreamWriter(out, "8859_1"))) {
+                Writer writer = new BufferedWriter(new OutputStreamWriter(out, "8859_1"))) {
             writer.write("#Generated from EPSG database version " + ThreadedHsqlEpsgFactory.VERSION + "\n");
             writer.write("#" + new Date() + "\n");
             List<String> codes = new ArrayList<>(CRS.getSupportedCodes("EPSG"));
@@ -91,11 +89,13 @@ public class PropertyDumper {
                                 e -> e.getKey().toString(),
                                 e -> e.getValue().toString(),
                                 (oldValue, newValue) -> oldValue,
-                                () -> new TreeMap<>(Comparator.comparingLong(Long::parseLong))
-                        ));
+                                () -> new TreeMap<>(Comparator.comparingLong(Long::parseLong))));
 
                 for (Map.Entry<String, String> entry : sortedMap.entrySet()) {
-                    writer.append(entry.getKey()).append("=").append(entry.getValue()).append("\n");
+                    writer.append(entry.getKey())
+                            .append("=")
+                            .append(entry.getValue())
+                            .append("\n");
                 }
             }
             writer.flush();

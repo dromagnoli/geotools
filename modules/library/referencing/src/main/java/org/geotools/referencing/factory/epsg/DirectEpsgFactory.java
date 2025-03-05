@@ -1444,7 +1444,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                         + " JOIN EPSG_USAGE U"
                         + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                         + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
-                        + " JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
+                        + " LEFT JOIN [Extent] E on U.EXTENT_CODE = E.EXTENT_CODE"
                         + " WHERE CO.COORD_OP_METHOD_CODE >= "
                         + BURSA_WOLF_MIN_CODE
                         + " AND CO.COORD_OP_METHOD_CODE <= "
@@ -1641,17 +1641,19 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                             if (!def.isVertical()) {
                                 ellipsoid = buffered.createEllipsoid(def.getEllipsoidCode());
                                 meridian = buffered.createPrimeMeridian(def.getPrimeMeridianCode());
-                                final BursaWolfParameters[] param = createBursaWolfParameters(primaryKey, result);
+                                final BursaWolfParameters[] param =
+                                        createBursaWolfParameters(def.getDatumCode(), result);
                                 if (param != null) {
                                     exit = true;
                                     properties.put(DefaultGeodeticDatum.BURSA_WOLF_KEY, param);
                                 }
                                 datum = factory.createGeodeticDatum(properties, ellipsoid, meridian);
                             } else {
-                                properties.put("identifiers", new NamedIdentifier(Citations.EPSG, def.getIdentifierAuthority()));
-                                datum = factory.createVerticalDatum(properties,VerticalDatumType.GEOIDAL);
+                                properties.put(
+                                        "identifiers",
+                                        new NamedIdentifier(Citations.EPSG, def.getIdentifierAuthority()));
+                                datum = factory.createVerticalDatum(properties, VerticalDatumType.GEOIDAL);
                             }
-
 
                         } else {
                             datum = null;
@@ -2059,7 +2061,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                         String datumCode = result.getString(8);
                         final VerticalCS cs = buffered.createVerticalCS(csCode);
                         final VerticalDatum datum;
-                        if ( datumCode!= null) {
+                        if (datumCode != null) {
                             final String dmCode = getString(result, 8, code);
                             datum = buffered.createVerticalDatum(dmCode);
                             final Map<String, Object> properties = createProperties(name, epsg, area, scope, remarks);
@@ -2952,7 +2954,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                             + " JOIN EPSG_USAGE U"
                             + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
                             + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
-                            + " JOIN [Extent] E on U.extent_code = E.extent_code"
+                            + " LEFT JOIN [Extent] E on U.extent_code = E.extent_code"
                             + " WHERE SOURCE_CRS_CODE = ?"
                             + " AND TARGET_CRS_CODE = ?"
                             + " ORDER BY ABS(CO.DEPRECATED), CO.COORD_OP_ACCURACY,"
