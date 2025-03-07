@@ -1472,6 +1472,9 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                 if (bwInfos == null) {
                     bwInfos = new ArrayList<>();
                 }
+                if (EnsembleDefinition.isExcludedOperation(operation)) {
+                    continue;
+                }
                 bwInfos.add(new BursaWolfInfo(operation, method, datum));
             }
         }
@@ -1637,7 +1640,7 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                         PrimeMeridian meridian;
                         EnsembleDefinition def = EnsembleDefinition.getEnsemble(epsg);
                         if (def != null) {
-                            properties.put("name", def.getName());
+                            properties.put("name", def.getNameIdentifier());
                             if (!def.isVertical()) {
                                 ellipsoid = buffered.createEllipsoid(def.getEllipsoidCode());
                                 meridian = buffered.createPrimeMeridian(def.getPrimeMeridianCode());
@@ -2634,14 +2637,12 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                             + " CO.COORD_OP_SCOPE,"
                             + " CO.REMARKS"
                             + " FROM [Coordinate_Operation] CO "
-                            + " JOIN EPSG_USAGE u"
-                            + " ON u.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
-                            + " AND u.OBJECT_CODE = CO.COORD_OP_CODE"
+                            + " JOIN EPSG_USAGE U"
+                            + " ON U.OBJECT_TABLE_NAME = '[Coordinate_Operation]'"
+                            + " AND U.OBJECT_CODE = CO.COORD_OP_CODE"
                             + " JOIN [Extent] E on U.extent_code = E.extent_code"
                             + " WHERE COORD_OP_CODE = ?"
                             + " ORDER BY ABS(CO.DEPRECATED), CO.COORD_OP_ACCURACY,"
-                            // In previous DB there was only 1 area for COORDINATE OPERATION.
-                            // With EPSG 11.0.31 they can be more. Let's limit to the one with bigger area
                             + " (BBOX_NORTH_BOUND_LAT - BBOX_SOUTH_BOUND_LAT) * "
                             + "(CASE WHEN BBOX_EAST_BOUND_LON > BBOX_WEST_BOUND_LON "
                             + "     THEN (BBOX_EAST_BOUND_LON - BBOX_WEST_BOUND_LON) "
@@ -2976,7 +2977,9 @@ public abstract class DirectEpsgFactory extends DirectAuthorityFactory
                 try (ResultSet result = stmt.executeQuery()) {
                     while (result.next()) {
                         final String code = getString(result, 1, pair);
-                        set.addAuthorityCode(code, searchTransformations ? null : targetKey);
+                        if (!EnsembleDefinition.isExcludedOperation(code)) {
+                            set.addAuthorityCode(code, searchTransformations ? null : targetKey);
+                        }
                     }
                 }
             } while ((searchTransformations = !searchTransformations) == true);
