@@ -443,10 +443,15 @@ public class NetCDFUtilities {
         String finalDir = null;
         if (externalDir != null) {
             String dir = (String) externalDir;
+            LOGGER.severe("NETCDF_DATA_DIR has been specified, with value: " + dir);
             final File file = new File(dir);
+            LOGGER.severe("validating directory: " + file);
             if (isValidDir(file)) {
+                LOGGER.severe("Directory is valid: " + file);
                 finalDir = dir;
             }
+        } else {
+            LOGGER.severe("NETCDF_DATA_DIR has not been specified");
         }
         EXTERNAL_DATA_DIR = finalDir;
 
@@ -558,36 +563,31 @@ public class NetCDFUtilities {
 
     public static boolean isValidDir(File file) {
         String dir = file.getAbsolutePath();
+        LOGGER.severe("Checking the external data dir");
         if (!file.exists()) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.warning(
-                        "The specified "
-                                + NETCDF_DATA_DIR
-                                + " property doesn't refer "
-                                + "to an existing folder. Please check the path: "
-                                + dir);
-            }
+            LOGGER.severe(
+                    "The specified "
+                            + NETCDF_DATA_DIR
+                            + " property doesn't refer "
+                            + "to an existing folder. Please check the path: "
+                            + dir);
             return false;
         } else if (!file.isDirectory()) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.warning(
-                        "The specified "
-                                + NETCDF_DATA_DIR
-                                + " property doesn't refer "
-                                + "to a directory. Please check the path: "
-                                + dir);
-            }
+            LOGGER.severe(
+                    "The specified "
+                            + NETCDF_DATA_DIR
+                            + " property doesn't refer "
+                            + "to a directory. Please check the path: "
+                            + dir);
             return false;
         } else if (!file.canWrite()) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.warning(
-                        "The specified "
-                                + NETCDF_DATA_DIR
-                                + " property refers to "
-                                + "a directory which can't be written. Please check the path and"
-                                + " the permissions for: "
-                                + dir);
-            }
+            LOGGER.severe(
+                    "The specified "
+                            + NETCDF_DATA_DIR
+                            + " property refers to "
+                            + "a directory which can't be written. Please check the path and"
+                            + " the permissions for: "
+                            + dir);
             return false;
         }
         return true;

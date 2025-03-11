@@ -88,10 +88,10 @@
       <groupId>edu.ucar</groupId>
       <artifactId>netcdf4</artifactId>
     </dependency>
-    <dependency>
+    <!--dependency>
       <groupId>edu.ucar</groupId>
       <artifactId>bufr</artifactId>
-    </dependency>
+    </dependency-->
     <dependency>
       <groupId>opendap</groupId>
       <artifactId>opendap</artifactId>

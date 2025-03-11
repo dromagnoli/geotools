@@ -92,13 +92,16 @@ public class AncillaryFileManager implements FileSetManager {
                 // Compose the path to an optional XML auxiliary file in the same directory of the
                 // input file
                 // (filename.xml)
+                LOGGER.severe("parentDirectory " + parentDirectory.getAbsolutePath());
                 String optionalAuxiliaryPath =
                         parentDirectory.getAbsolutePath()
                                 + File.separator
                                 + baseName
                                 + INDEX_SUFFIX;
                 File file = new File(optionalAuxiliaryPath);
+                LOGGER.severe("Indexer XML lookup on " + file);
                 if (!file.exists() || !file.canRead()) {
+                    LOGGER.severe(file + " doesn't exist or cannot be read");
                     // CASE 2: side file in hidden folder (for retrocompatibility)
                     // Compose the path to an optional XML auxiliary file inside a directory of with
                     // the same
@@ -112,6 +115,7 @@ public class AncillaryFileManager implements FileSetManager {
                                     + baseName
                                     + INDEX_SUFFIX;
                     file = new File(optionalAuxiliaryPath);
+                    LOGGER.severe("Indexer XML lookup on " + file);
                     if (!file.exists() || !file.canRead()) {
                         file = null;
                     }
@@ -120,7 +124,10 @@ public class AncillaryFileManager implements FileSetManager {
                 if (file == null) {
                     // CASE 3: the recent approach using HASH of the file to prevent conflicts
                     // With files with same name
+                    LOGGER.severe(
+                            "File still null. using destinationDirectory " + destinationDirectory);
                     file = new File(destinationDirectory, baseName + INDEX_SUFFIX);
+                    LOGGER.severe("Indexer XML lookup on " + file);
                 }
                 return file;
             }
@@ -129,7 +136,7 @@ public class AncillaryFileManager implements FileSetManager {
         INDEXER_DATASTORE {
             @Override
             File lookup(String baseName, File parentDirectory, File destinationDirectory) {
-
+                LOGGER.severe("parentDirectory " + parentDirectory.getAbsolutePath());
                 // CASE 1: side file (for backward compatibility)
                 // Compose the path to an optional datastore file in the same directory of the input
                 // file
@@ -138,7 +145,10 @@ public class AncillaryFileManager implements FileSetManager {
                                 + File.separator
                                 + DEFAULT_DATASTORE_PROPERTIES;
                 File file = new File(optionalAuxiliaryDatastorePath);
+                LOGGER.severe("Datastore indexer lookup on " + file);
                 if (!file.exists() || !file.canRead()) {
+                    LOGGER.severe(file + " doesn't exist or cannot be read");
+
                     // CASE 2: side file in hidden folder (for backward compatibility)
                     // Compose the path to an optional datastore file inside a directory with the
                     // same
@@ -151,6 +161,8 @@ public class AncillaryFileManager implements FileSetManager {
                                     + File.separator
                                     + DEFAULT_DATASTORE_PROPERTIES;
                     file = new File(optionalAuxiliaryDatastorePath);
+                    LOGGER.severe("Datastore indexer lookup on " + file);
+
                     if (!file.exists() || !file.canRead()) {
                         file = null;
                     }
@@ -158,8 +170,11 @@ public class AncillaryFileManager implements FileSetManager {
                 if (file == null) {
                     // CASE 3: the recent approach using HASH of the file to prevent conflicts
                     // With files with same name
+                    LOGGER.severe(
+                            "File still null. using destinationDirectory " + destinationDirectory);
                     file = new File(destinationDirectory, DEFAULT_DATASTORE_PROPERTIES);
                     if (!file.exists() || !file.canRead()) {
+                        LOGGER.severe("File still null");
                         file = null;
                     }
                 }
@@ -275,9 +290,11 @@ public class AncillaryFileManager implements FileSetManager {
         File baseDir = parentDirectory;
         final String baseFolder = NetCDFUtilities.EXTERNAL_DATA_DIR;
         if (baseFolder != null) {
+            LOGGER.severe("Using external datadir, baseFolder:" + baseFolder);
             baseDir = new File(baseFolder);
             // Check it again in case it has been deleted in the meantime:
             baseDir = NetCDFUtilities.isValidDir(baseDir) ? baseDir : null;
+            LOGGER.severe("baseFolder after validation:" + baseDir);
         }
 
         String mainFilePath = ncFile.getCanonicalPath();
@@ -293,21 +310,34 @@ public class AncillaryFileManager implements FileSetManager {
         String baseName =
                 cutExtension(extension) ? FilenameUtils.removeExtension(mainName) : mainName;
         String outputLocalFolder = "." + baseName + "_" + hashCode;
+        LOGGER.severe("Setting up destination dir with: " + baseDir + " and " + outputLocalFolder);
         destinationDir = new File(baseDir, outputLocalFolder);
 
         boolean createdDir = false;
         if (!destinationDir.exists()) {
+            LOGGER.severe("destination dir doesn't exist. Creating it: " + destinationDir);
             createdDir = destinationDir.mkdirs();
             // Creation of an origin.txt file with the absolute file path internally written
             File origin = new File(destinationDir, "origin.txt");
+            LOGGER.severe(
+                    "Creating origin file as "
+                            + origin
+                            + " pointing to "
+                            + ncFile.getAbsolutePath());
             FileUtils.write(origin, ncFile.getAbsolutePath(), "UTF-8");
+        } else {
+            LOGGER.severe("destination dir already exist");
         }
 
         // Init auxiliary file names
+
         slicesIndexFile = new File(destinationDir, baseName + ".idx");
+        LOGGER.severe("Setting up slincesIndexfile: " + slicesIndexFile);
         indexerFile = lookupFile(indexFilePath, baseName, AuxiliaryFileType.INDEXER_XML);
+        LOGGER.severe("Setting up slincesIndexfile: " + slicesIndexFile);
 
         if (!createdDir) {
+            LOGGER.severe("Checking reset");
             // Check for index to be reset only in case we didn't created a new directory.
             checkReset(ncFile, slicesIndexFile, destinationDir);
         }
@@ -326,17 +356,26 @@ public class AncillaryFileManager implements FileSetManager {
      */
     private File lookupFile(String filePath, String baseName, AuxiliaryFileType type) {
         // CASE 1: file externally provided
+        LOGGER.severe("Lookup for filePath: " + filePath);
         if (filePath != null) {
             // absolute path?
             File file = new File(filePath);
-            if (file.exists() && file.canRead()) return file;
+            if (file.exists() && file.canRead()) {
+                LOGGER.severe("file exist and can be read. Returning it: " + file);
+                return file;
+            }
             // findable relative path?
             if (!file.isAbsolute()) {
                 file = new File(parentDirectory, filePath);
-                if (file.exists() && file.canRead()) return file;
+                LOGGER.severe("file is not absolute, looking into parent dir: " + parentDirectory);
+                if (file.exists() && file.canRead()) {
+                    LOGGER.severe("file exist and can be read. Returning it: " + file);
+                    return file;
+                }
             }
         }
         // CASE 2, default lookup
+        LOGGER.severe("proceeding with default type lookup");
         return type.lookup(baseName, parentDirectory, destinationDir);
     }
 
@@ -349,6 +388,13 @@ public class AncillaryFileManager implements FileSetManager {
             final File mainFile, final File slicesIndexFile, final File destinationDir)
             throws IOException {
         // TODO: Consider acquiring a LOCK on the file
+        LOGGER.severe(
+                "check reset on mainFile, slicesIndexFile, destinationDir: "
+                        + mainFile
+                        + ","
+                        + slicesIndexFile
+                        + ","
+                        + destinationDir);
         if (slicesIndexFile.exists()) {
             final long mainFileTime = mainFile.lastModified();
             final long indexTime = slicesIndexFile.lastModified();
