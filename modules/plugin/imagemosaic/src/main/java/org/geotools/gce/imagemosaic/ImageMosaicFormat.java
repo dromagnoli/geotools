@@ -228,6 +228,13 @@ public final class ImageMosaicFormat extends AbstractGridFormat implements Forma
     public static final ParameterDescriptor<Boolean> SET_ROI_PROPERTY = new DefaultParameterDescriptor<>(
             "SetRoiProperty", Boolean.class, new Boolean[] {Boolean.TRUE, Boolean.FALSE}, Boolean.FALSE);
 
+    /**
+     * Control whether duplicated granules should be skipped or not. If set to true, the reader will skip loading
+     * granules that have a URL duplicate of a previously added granule.
+     */
+    public static final ParameterDescriptor<Boolean> SKIP_DUPLICATES = new DefaultParameterDescriptor<>(
+            "SkipDuplicates", Boolean.class, new Boolean[] {Boolean.TRUE, Boolean.FALSE}, Boolean.FALSE);
+
     /** Creates an instance and sets the metadata. */
     public ImageMosaicFormat() {
         setInfo();
@@ -264,7 +271,8 @@ public final class ImageMosaicFormat extends AbstractGridFormat implements Forma
                     OVERVIEW_POLICY,
                     BANDS,
                     EXCESS_GRANULE_REMOVAL,
-                    RESCALE_PIXELS
+                    RESCALE_PIXELS,
+                    SKIP_DUPLICATES
                 }));
 
         // reading parameters

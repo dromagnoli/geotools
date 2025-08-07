@@ -282,6 +282,10 @@ public class RasterLayerResponse {
 
         private boolean heterogeneousCRS;
 
+        private Set<URL> visitedGranules;
+
+        private boolean skipDuplicates;
+
         /** Default {@link Constructor} */
         private MosaicProducer(List<SubmosaicProducer> collectors) {
             this(false, collectors);
@@ -301,6 +305,8 @@ public class RasterLayerResponse {
             this.granuleCollectors = collectors;
             this.mergeBehavior = request.getMergeBehavior();
             this.heterogeneousCRS = collectors.stream().anyMatch(c -> c.isReprojecting());
+            this.skipDuplicates = request.isSkipDuplicates();
+            this.visitedGranules = skipDuplicates ? new HashSet<>() : null;
         }
 
         /**
@@ -319,6 +325,7 @@ public class RasterLayerResponse {
             // create a granuleDescriptor loader
             final Geometry bb = JTS.toGeometry((BoundingBox) queryBBox);
             Geometry inclusionGeometry = granuleDescriptor.getFootprint();
+            URL granuleUrl = granuleDescriptor.getGranuleUrl();
             boolean intersects = false;
             if (inclusionGeometry != null) {
                 CoordinateReferenceSystem granuleCRS =
@@ -351,9 +358,19 @@ public class RasterLayerResponse {
 
                 // find the right filter for this granule
                 boolean found = false;
+                if (skipDuplicates && visitedGranules.contains(granuleUrl)) {
+                    // we already have this granule, skip it
+                    if (LOGGER.isLoggable(Level.FINEST)) {
+                        LOGGER.fine("We already have this granule, skipping it: " + granuleDescriptor);
+                    }
+                    return;
+                }
                 for (SubmosaicProducer submosaicProducer : granuleCollectors) {
                     if (submosaicProducer.accept(granuleDescriptor)) {
                         granulesNumber++;
+                        if (skipDuplicates) {
+                            visitedGranules.add(granuleUrl);
+                        }
                         found = true;
                         break;
                     }
@@ -500,6 +517,8 @@ public class RasterLayerResponse {
 
     private boolean heterogeneousCRS;
 
+    private boolean skipDuplicates;
+
     private double[] backgroundValues;
 
     private Hints hints;
@@ -541,6 +560,7 @@ public class RasterLayerResponse {
         geometryMask = request.getGeometryMask();
         maskingBufferPixels = request.getMaskingBufferPixels();
         setRoiProperty = request.isSetRoiProperty();
+        skipDuplicates = request.isSkipDuplicates();
     }
 
     /**

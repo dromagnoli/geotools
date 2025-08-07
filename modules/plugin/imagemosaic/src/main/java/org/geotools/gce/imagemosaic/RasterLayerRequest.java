@@ -120,6 +120,8 @@ public class RasterLayerRequest {
 
     private boolean multithreadingAllowed;
 
+    private boolean skipDuplicates;
+
     private List<?> requestedTimes;
 
     private List<?> elevation;
@@ -203,6 +205,10 @@ public class RasterLayerRequest {
 
     public boolean isUseAlternativeCRS() {
         return useAlternativeCRS;
+    }
+
+    public boolean isSkipDuplicates() {
+        return skipDuplicates;
     }
 
     public ExcessGranulePolicy getExcessGranuleRemovalPolicy() {
@@ -582,6 +588,11 @@ public class RasterLayerRequest {
                 setRoiProperty = ((Boolean) value).booleanValue();
                 continue;
             }
+
+            if (name.equals(ImageMosaicFormat.SKIP_DUPLICATES.getName())) {
+                if (value == null) continue;
+                skipDuplicates = (Boolean) value;
+            }
         }
     }
 
@@ -910,6 +921,14 @@ public class RasterLayerRequest {
 
         if (name.equals(AbstractGridFormat.RESCALE_PIXELS.getName())) {
             rescalingEnabled = Boolean.TRUE.equals(param.getValue());
+            return;
+        }
+
+        if (name.equals(ImageMosaicFormat.SKIP_DUPLICATES.getName())) {
+            skipDuplicates = Boolean.TRUE.equals(param.getValue());
+            if (skipDuplicates) {
+                LOGGER.log(Level.FINEST, "Duplicates will be skipped");
+            }
         }
     }
 
