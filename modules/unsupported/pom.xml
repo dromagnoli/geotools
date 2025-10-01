@@ -239,5 +239,11 @@
         <module>jdbc-singlestore</module>
       </modules>
     </profile>
+    <profile>
+      <id>dggs</id>
+      <modules>
+        <module>dggs</module>
+      </modules>
+    </profile>
   </profiles>
 </project>
