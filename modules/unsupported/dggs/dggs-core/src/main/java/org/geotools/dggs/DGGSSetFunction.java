@@ -27,10 +27,10 @@ import java.util.Iterator;
  */
 public interface DGGSSetFunction extends DGGSFunction {
 
-    public Iterator<Zone> getMatchedZones();
+    Iterator<Zone> getMatchedZones();
 
-    public long countMatched();
+    long countMatched();
 
     /** Returns true if the set of matched zones is stable, that is, won't change from one invocation to the next */
-    public boolean isStable();
+    boolean isStable();
 }

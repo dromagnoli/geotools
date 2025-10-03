@@ -26,5 +26,5 @@ import org.geotools.feature.visitor.CalcResult;
  */
 public interface IterableCalcResult<T> extends CalcResult {
 
-    public CloseableIterator<T> getIterator();
+    CloseableIterator<T> getIterator();
 }

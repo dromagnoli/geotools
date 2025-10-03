@@ -31,10 +31,10 @@
       <groupId>org.geotools</groupId>
       <artifactId>gt-render</artifactId>
     </dependency>
-      <dependency>
-          <groupId>org.geotools</groupId>
-          <artifactId>gt-jdbc</artifactId>
-      </dependency>
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-jdbc</artifactId>
+    </dependency>
     <!-- Tracking dependency numbers here, they will likely move to GeoTools in the future, 
         nothing else is using them -->
     <dependency>

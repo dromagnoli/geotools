@@ -57,6 +57,7 @@ import org.geotools.dggs.DGGSInstance;
 import org.geotools.dggs.DGGSSetFunction;
 import org.geotools.dggs.Zone;
 import org.geotools.feature.FeatureTypes;
+import org.geotools.feature.SchemaException;
 import org.geotools.feature.simple.SimpleFeatureTypeBuilder;
 import org.geotools.feature.visitor.FeatureAttributeVisitor;
 import org.geotools.feature.visitor.MaxVisitor;
@@ -76,7 +77,17 @@ class DGGSGeometryFeatureSource extends ContentFeatureSource implements DGGSFeat
     static final Logger LOGGER = Logging.getLogger(DGGSGeometryFeatureSource.class);
 
     private final DGGSGeometryStore store;
-    private DGGSResolutionCalculator resolutions;
+    private final DGGSResolutionCalculator resolutions;
+    private static final AttributeDescriptor ZONE_ID_DESCRIPTOR;
+
+    static {
+        try {
+            ZONE_ID_DESCRIPTOR =
+                    DataUtilities.createType("test", "zoneId:String").getDescriptor("zoneId");
+        } catch (SchemaException e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public DGGSGeometryFeatureSource(ContentEntry entry, DGGSGeometryStore store) {
         super(entry, Query.ALL);
@@ -286,6 +297,11 @@ class DGGSGeometryFeatureSource extends ContentFeatureSource implements DGGSFeat
     @Override
     public DGGSInstance getDGGS() {
         return store.dggs;
+    }
+
+    @Override
+    public AttributeDescriptor getZoneIdAttribute() {
+        return ZONE_ID_DESCRIPTOR;
     }
 
     @Override

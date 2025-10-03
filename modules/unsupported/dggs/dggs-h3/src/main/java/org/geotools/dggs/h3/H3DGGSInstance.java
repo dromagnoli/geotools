@@ -32,7 +32,6 @@ import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.store.EmptyIterator;
 import org.geotools.dggs.DGGSInstance;
 import org.geotools.dggs.Zone;
-import org.geotools.dggs.gstore.DGGSStore;
 import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.geometry.jts.JTS;
 import org.geotools.geometry.jts.LiteCoordinateSequenceFactory;
@@ -336,14 +335,16 @@ public class H3DGGSInstance implements DGGSInstance {
     }
 
     @Override
-    public Filter getChildFilter(FilterFactory ff, String zoneId, int resolution, boolean upTo) {
+    public Filter getChildFilter(
+            FilterFactory ff, String zoneId, int resolution, boolean upTo, AttributeDescriptor zoneAttribute) {
         long id = h3.stringToH3(zoneId);
         H3Index idx = new H3Index(id);
         long lowest = idx.lowestIdChild(resolution);
         long highest = idx.highestIdChild(resolution);
         String lowestId = h3.h3ToString(lowest);
         String highestId = h3.h3ToString(highest);
-        Filter matchFilter = ff.between(ff.property(DGGSStore.ZONE_COLUMN), ff.literal(lowestId), ff.literal(highestId));
+        Filter matchFilter =
+                ff.between(ff.property(zoneAttribute.getLocalName()), ff.literal(lowestId), ff.literal(highestId));
         return matchFilter;
     }
 }

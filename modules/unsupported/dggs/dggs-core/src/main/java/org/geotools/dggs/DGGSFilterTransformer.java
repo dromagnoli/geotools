@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import org.apache.commons.collections4.IteratorUtils;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.api.filter.Filter;
 import org.geotools.api.filter.FilterFactory;
 import org.geotools.api.filter.Or;
@@ -51,17 +52,28 @@ public class DGGSFilterTransformer extends DuplicatingFilterVisitor {
 
     static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
-    public static Filter adapt(Filter filter, DGGSInstance dggs, DGGSResolutionCalculator resolutions, int resolution) {
-        DGGSFilterTransformer adapter = new DGGSFilterTransformer(dggs, resolutions, resolution);
+    public static Filter adapt(
+            Filter filter,
+            DGGSInstance dggs,
+            DGGSResolutionCalculator resolutions,
+            int resolution,
+            AttributeDescriptor zoneAttribute) {
+        DGGSFilterTransformer adapter = new DGGSFilterTransformer(dggs, resolutions, resolution, zoneAttribute);
         return (Filter) filter.accept(adapter, null);
     }
 
     DGGSInstance dggs;
     int resolution;
+    AttributeDescriptor zoneAttribute;
 
-    public DGGSFilterTransformer(DGGSInstance dggs, DGGSResolutionCalculator resolutions, int resolution) {
+    public DGGSFilterTransformer(
+            DGGSInstance dggs,
+            DGGSResolutionCalculator resolutions,
+            int resolution,
+            AttributeDescriptor zoneAttribute) {
         this.dggs = dggs;
         this.resolution = resolution;
+        this.zoneAttribute = zoneAttribute;
     }
 
     // TODO: turn DGGSFunction too
@@ -88,7 +100,7 @@ public class DGGSFilterTransformer extends DuplicatingFilterVisitor {
             Geometry geometry = (Geometry) filter.getExpression2().evaluate(Geometry.class);
             if (geometry instanceof Polygon polygon) {
                 Iterator<Zone> zones = dggs.polygon(polygon, resolution, true);
-                return getFilterFrom(dggs, zones, resolution);
+                return getFilterFrom(dggs, zones, resolution, zoneAttribute);
             } else if (geometry instanceof MultiPolygon multiPolygon) {
                 List<Iterator<Zone>> iterators = new ArrayList<>();
                 for (int i = 0; i < multiPolygon.getNumGeometries(); i++) {
@@ -97,7 +109,7 @@ public class DGGSFilterTransformer extends DuplicatingFilterVisitor {
                 }
                 @SuppressWarnings("unchecked")
                 Iterator<Zone> zones = IteratorUtils.chainedIterator(iterators.toArray(n -> new Iterator[n]));
-                return getFilterFrom(dggs, zones, resolution);
+                return getFilterFrom(dggs, zones, resolution, zoneAttribute);
             }
         }
         // fallback for non supported cases
@@ -121,13 +133,13 @@ public class DGGSFilterTransformer extends DuplicatingFilterVisitor {
             //            return FF.or(filters);
             return super.visit(filter, extraData);
         } else {
-            return getFilterFrom(dggs, dggs.zonesFromEnvelope(envelope, resolution, true), resolution);
+            return getFilterFrom(dggs, dggs.zonesFromEnvelope(envelope, resolution, true), resolution, zoneAttribute);
         }
     }
 
     private Filter getFilterFrom(Iterator<Zone> zones) {
         List<Expression> expressions = new ArrayList<>();
-        expressions.add(FF.property(DGGSStore.ZONE_COLUMN));
+        expressions.add(FF.property(zoneAttribute.getLocalName()));
         while (zones.hasNext()) {
             expressions.add(FF.literal(zones.next().getId()));
         }
@@ -142,19 +154,21 @@ public class DGGSFilterTransformer extends DuplicatingFilterVisitor {
      *
      * @param zones
      * @param resolution
+     * @param zoneAttribute
      * @return
      */
-    public static Filter getFilterFrom(DGGSInstance dggs, Iterator<Zone> zones, int resolution) {
+    public static Filter getFilterFrom(
+            DGGSInstance dggs, Iterator<Zone> zones, int resolution, AttributeDescriptor zoneAttribute) {
         List<Filter> filters = new ArrayList<>();
         List<Expression> inExpressions = new ArrayList<>();
-        inExpressions.add(FF.property(DGGSStore.ZONE_COLUMN));
+        inExpressions.add(FF.property(zoneAttribute.getLocalName()));
         while (zones.hasNext()) {
             Zone zone = zones.next();
             // exact match
             if (zone.getResolution() == resolution) {
                 inExpressions.add(FF.literal(zone.getId()));
             } else { // parent match
-                Filter childFilter = dggs.getChildFilter(FF, zone.getId(), resolution, false);
+                Filter childFilter = dggs.getChildFilter(FF, zone.getId(), resolution, false, zoneAttribute);
                 filters.add(childFilter);
             }
         }

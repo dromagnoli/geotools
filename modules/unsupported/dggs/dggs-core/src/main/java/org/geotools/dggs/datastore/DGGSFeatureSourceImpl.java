@@ -35,6 +35,7 @@ import org.geotools.api.data.ResourceInfo;
 import org.geotools.api.data.SimpleFeatureSource;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.api.feature.type.Name;
 import org.geotools.api.filter.Filter;
 import org.geotools.api.referencing.crs.CoordinateReferenceSystem;
@@ -57,13 +58,14 @@ public class DGGSFeatureSourceImpl implements org.geotools.dggs.gstore.DGGSFeatu
     private final SimpleFeatureType schema;
     private final SimpleFeatureSource delegate;
     private final DGGSQuerySplitter splitter;
+    private final AttributeDescriptor descriptor;
 
-    public DGGSFeatureSourceImpl(
-            DGGSDataStore dataStore, SimpleFeatureSource delegate, SimpleFeatureType schema) {
+    public DGGSFeatureSourceImpl(DGGSDataStore dataStore, SimpleFeatureSource delegate, SimpleFeatureType schema) {
         this.delegate = delegate;
         this.dataStore = dataStore;
         this.schema = schema;
-        this.splitter = new DGGSQuerySplitter(dataStore.getDggs(), dataStore.getResolutions(), schema, dataStore.getZoneIdColumn());
+        this.descriptor = schema.getDescriptor(dataStore.getZoneIdAttribute());
+        this.splitter = new DGGSQuerySplitter(dataStore.getDggs(), dataStore.getResolutions(), schema, descriptor);
     }
 
     @Override
@@ -84,6 +86,11 @@ public class DGGSFeatureSourceImpl implements org.geotools.dggs.gstore.DGGSFeatu
     @Override
     public DGGSInstance getDGGS() {
         return dataStore.getDggs();
+    }
+
+    @Override
+    public AttributeDescriptor getZoneIdAttribute() {
+        return descriptor;
     }
 
     @Override
@@ -209,7 +216,7 @@ public class DGGSFeatureSourceImpl implements org.geotools.dggs.gstore.DGGSFeatu
             if (propertyNames != null) {
                 outputSchema = SimpleFeatureTypeBuilder.retype(getSchema(), propertyNames);
             }
-            result = new DGGSFeatureCollection(result, outputSchema, getDGGS());
+            result = new DGGSFeatureCollection(result, outputSchema, dataStore.getZoneIdAttribute(), getDGGS());
         }
         if (split.post != Filter.INCLUDE) {
             result = new FilteringSimpleFeatureCollection(result, split.post);
@@ -237,7 +244,7 @@ public class DGGSFeatureSourceImpl implements org.geotools.dggs.gstore.DGGSFeatu
             try {
                 result = DataUtilities.simple(new ForceCoordinateSystemFeatureResults(result, sourceCRS));
             } catch (SchemaException e) {
-                throw (IOException) new IOException("Error occurred trying to force CRS").initCause(e);
+                throw new IOException("Error occurred trying to force CRS", e);
             }
         } else {
             // no override
@@ -250,7 +257,7 @@ public class DGGSFeatureSourceImpl implements org.geotools.dggs.gstore.DGGSFeatu
                 try {
                     result = new ReprojectingFeatureCollection(result, targetCRS);
                 } catch (Exception e) {
-                    throw (IOException) new IOException("Error occurred trying to reproject data").initCause(e);
+                    throw new IOException("Error occurred trying to reproject data", e);
                 }
             }
         }

@@ -12,10 +12,12 @@ package org.geotools.dggs;
 import static org.junit.Assert.*;
 
 import com.uber.h3core.H3Core;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.api.filter.Filter;
 import org.geotools.api.filter.FilterFactory;
 import org.geotools.api.filter.PropertyIsEqualTo;
 import org.geotools.api.filter.spatial.Intersects;
+import org.geotools.data.DataUtilities;
 import org.geotools.dggs.gstore.DGGSResolutionCalculator;
 import org.geotools.dggs.h3.H3DGGSInstance;
 import org.geotools.factory.CommonFactoryFinder;
@@ -34,7 +36,9 @@ public class DGGSFilterTransformerTest {
     public void setupTransformer() throws Exception {
         H3DGGSInstance dggs = new H3DGGSInstance(H3Core.newInstance());
         DGGSResolutionCalculator resolutionCalculator = new DGGSResolutionCalculator(dggs);
-        transformer = new DGGSFilterTransformer(dggs, resolutionCalculator, 3);
+        AttributeDescriptor zoneIdDescriptor =
+                DataUtilities.createType("test", "zoneId:String").getDescriptor("zoneId");
+        transformer = new DGGSFilterTransformer(dggs, resolutionCalculator, 3, zoneIdDescriptor);
     }
 
     @Test

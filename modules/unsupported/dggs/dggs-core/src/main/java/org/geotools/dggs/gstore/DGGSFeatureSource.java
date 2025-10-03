@@ -17,6 +17,7 @@
 package org.geotools.dggs.gstore;
 
 import org.geotools.api.data.SimpleFeatureSource;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.dggs.DGGSInstance;
 
 /** DGGS specific extensions to {@link SimpleFeatureSource}, adding ability to native zone access */
@@ -28,4 +29,11 @@ public interface DGGSFeatureSource extends SimpleFeatureSource {
      * @return
      */
     DGGSInstance getDGGS();
+
+    /**
+     * Returns the attribute used to store zone identifiers
+     *
+     * @return
+     */
+    AttributeDescriptor getZoneIdAttribute();
 }

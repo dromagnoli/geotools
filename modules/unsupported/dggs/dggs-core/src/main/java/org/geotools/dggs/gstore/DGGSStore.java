@@ -22,7 +22,7 @@ import org.geotools.api.feature.type.AttributeDescriptor;
 
 /**
  * Interface for stores implementing DGGS access. Each feature type returned by a DGGSStore must have at a minimum a
- * zoneIdentifier column and a {@link #RESOLUTION} field
+ * zone identifier column and a {@link #RESOLUTION} field
  */
 public interface DGGSStore extends DataStore {
 

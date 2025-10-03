@@ -58,12 +58,15 @@ public class DGGSFeatureCollection implements SimpleFeatureCollection {
 
     private final SimpleFeatureType schema;
     private final DGGSInstance dggs;
+    private final String zoneIdColumn;
     private final SimpleFeatureCollection delegate;
 
-    public DGGSFeatureCollection(SimpleFeatureCollection delegate, SimpleFeatureType schema, DGGSInstance dggs) {
+    public DGGSFeatureCollection(
+            SimpleFeatureCollection delegate, SimpleFeatureType schema, String zoneIdColumn, DGGSInstance dggs) {
         this.delegate = delegate;
         this.schema = schema;
         this.dggs = dggs;
+        this.zoneIdColumn = zoneIdColumn;
     }
 
     @Override
@@ -113,7 +116,7 @@ public class DGGSFeatureCollection implements SimpleFeatureCollection {
         // map the geometry attributes to zone ids and execute the visit on them
         int geometryIdx = getGeometryIndex(groupByAttributes);
         List<Expression> newGroupAttributes = new ArrayList<>(groupByAttributes);
-        newGroupAttributes.set(geometryIdx, FF.property(ZONE_COLUMN));
+        newGroupAttributes.set(geometryIdx, FF.property(zoneIdColumn));
         GroupByVisitor mappedVisitor =
                 new GroupByVisitor(groupByVisitor.getAggregate(), expression, newGroupAttributes, null);
         delegate.accepts(mappedVisitor, progress);
