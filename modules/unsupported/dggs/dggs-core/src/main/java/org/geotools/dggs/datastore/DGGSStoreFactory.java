@@ -17,7 +17,6 @@
 package org.geotools.dggs.datastore;
 
 import java.io.IOException;
-import java.util.HashMap;
 import java.util.Map;
 import org.geotools.api.data.DataStore;
 import org.geotools.api.data.DataStoreFactorySpi;
@@ -26,12 +25,8 @@ import org.geotools.api.feature.type.Name;
 import org.geotools.dggs.DGGSFactoryFinder;
 import org.geotools.dggs.DGGSInstance;
 import org.geotools.feature.NameImpl;
-import org.geotools.jdbc.JDBCDataStoreFactory;
 
-/**
- * Factory for {@link org.geotools.dggs.gstore.DGGSStore} based on ClickHouse storage . TODO: generalize this so that it
- * can take DGGS parameters as well.
- */
+/** Factory for {@link org.geotools.dggs.gstore.DGGSStore} */
 // TODO: add a limit to the complexity of queries the store is willing to accept? And suggest the
 // user to switch to a lower resolution instead. Though maybe this ought to be done at the
 // service level, and propagated down to the store as a Hint?
@@ -43,21 +38,23 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
             new Param("dggs_id", String.class, "DGGS Factory identifier, e.g., H3 or rHEALPix", true, null);
 
     /** Logical store name (used by your store to resolve tables/collections/etc.) */
-    public static final Param STORE_NAME =
-            new Param("store_name", String.class,
-                    "Logical store name for this repository (schema, namespace, etc.)",
-                    true, null);
+    public static final Param STORE_NAME = new Param(
+            "store_name", String.class, "Logical store name for this repository (schema, namespace, etc.)", true, null);
 
-    /** Repository instance to be used by the store.*/
-    public static final Param REPOSITORY =
-            new Param("repository", Repository.class,
-                    "Repository implementation used by the store (passed by reference)",
-                    true, null);
+    /** Repository instance to be used by the store. */
+    public static final Param REPOSITORY = new Param(
+            "repository",
+            Repository.class,
+            "Repository implementation used by the store (passed by reference)",
+            true,
+            null);
 
-    public static final Param ZONE_COLUMN_IDENTIFIER =
-            new Param("zoneColumnIdentifier", String.class,
-                    "The column name identifying the column containing the DGGS zone identifiers",
-                    true, null);
+    public static final Param ZONE_ID_COLUMN_NAME = new Param(
+            "zoneIdColumnName",
+            String.class,
+            "The column name identifying the attribute containing the DGGS zone identifiers",
+            true,
+            null);
 
     @Override
     public DataStore createNewDataStore(Map<String, ?> params) throws IOException {
@@ -79,16 +76,14 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
             throw new IOException("Parameter 'store_name' is required and must be non-empty.");
         }
 
-        String zoneColumnId = (String) ZONE_COLUMN_IDENTIFIER.lookUp(params);
+        String zoneIdAttribute = (String) ZONE_ID_COLUMN_NAME.lookUp(params);
 
         /*Map<String, Object> delegateParams = new HashMap<>(params);
         delegateParams.put(JDBCDataStoreFactory.DBTYPE.key, DATABASE_ID);
         delegateParams.put(JDBCDataStoreFactory.SCHEMA.key, params.get(JDBCDataStoreFactory.DATABASE.key));*/
         Name name = new NameImpl(storeName);
         DataStore datastore = repository.dataStore(name);
-
-
-        return new DGGSDataStore(dggs, datastore, zoneColumnId);
+        return new DGGSDataStore(dggs, datastore, zoneIdAttribute);
     }
 
     @Override
@@ -107,7 +102,7 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
                 .filter(p -> !JDBCDataStoreFactory.DBTYPE.key.equals(p.key)
                         && !JDBCDataStoreFactory.SCHEMA.key.equals(p.key));
         return Stream.concat(Stream.of(DGGS_FACTORY_ID), delegateParams).toArray(n -> new Param[n]);*/
-        return new Param[] {DGGS_FACTORY_ID, STORE_NAME, REPOSITORY, ZONE_COLUMN_IDENTIFIER};
+        return new Param[] {DGGS_FACTORY_ID, STORE_NAME, REPOSITORY, ZONE_ID_COLUMN_NAME};
     }
 
     @Override

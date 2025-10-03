@@ -101,9 +101,9 @@ public interface DGGSInstance extends AutoCloseable {
 
     /**
      * Returns the count of neighboring zones. The default implementation just uses {@link #neighbors(String, int)},
-     * subclasses can provide a better optimized implemnetation
+     * subclasses can provide a better optimized implementation
      *
-     * @param envelope The area of search
+     * @param id the zone Id
      * @param resolution The target resolution
      * @return A zone count
      */
@@ -189,5 +189,6 @@ public interface DGGSInstance extends AutoCloseable {
      * @param upTo If true, return a filter matching all the children, from the direct ones, up to the given solution.
      *     If false, return a filter matching only the children at the target resolution instead.
      */
-    Filter getChildFilter(FilterFactory ff, String zoneId, int resolution, boolean upTo);
+    Filter getChildFilter(
+            FilterFactory ff, String zoneId, int resolution, boolean upTo, AttributeDescriptor zoneAttribute);
 }

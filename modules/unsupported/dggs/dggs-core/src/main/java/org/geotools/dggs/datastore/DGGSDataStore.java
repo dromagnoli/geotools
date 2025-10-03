@@ -29,7 +29,6 @@ import org.geotools.api.data.FeatureReader;
 import org.geotools.api.data.FeatureWriter;
 import org.geotools.api.data.LockingManager;
 import org.geotools.api.data.Query;
-import org.geotools.api.data.Repository;
 import org.geotools.api.data.ServiceInfo;
 import org.geotools.api.data.Transaction;
 import org.geotools.api.feature.simple.SimpleFeature;
@@ -54,7 +53,7 @@ import org.locationtech.jts.geom.Polygon;
  * Wraps another store containing feature types with the following characteristics:
  *
  * <ul>
- *   <li>A zoneId string attribute (TODO: make this configurable per DGGS, H3 should be using Long)
+ *   <li>A zoneId attribute
  *   <li>A resolution attribute (for ease of filtering)
  *   <li>Does not have a "geometry" attribute, the adds it
  * </ul>
@@ -86,23 +85,21 @@ public class DGGSDataStore implements DGGSStore {
     public static final String GEOMETRY = "geometry";
     /** The default geometry property, often used in filters */
     public static final String DEFAULT_GEOMETRY = "";
-    /** The resolution property, in the source and returned features */
+
     private final DGGSInstance dggs;
-
     private final DataStore delegate;
-
-    public String getZoneIdColumn() {
-        return zoneIdColumn;
-    }
-
-    private final String zoneIdColumn;
+    private final String zoneIdAttribute;
     private final DGGSResolutionCalculator resolutions;
 
-    public DGGSDataStore(DGGSInstance dggs, DataStore delegate, String zoneIdColumn) {
+    public DGGSDataStore(DGGSInstance dggs, DataStore delegate, String zoneIdAttribute) {
         this.delegate = delegate;
         this.dggs = dggs;
-        this.zoneIdColumn = zoneIdColumn;
+        this.zoneIdAttribute = zoneIdAttribute;
         this.resolutions = new DGGSResolutionCalculator(dggs);
+    }
+
+    public String getZoneIdAttribute() {
+        return zoneIdAttribute;
     }
 
     @Override
@@ -142,7 +139,7 @@ public class DGGSDataStore implements DGGSStore {
     }
 
     private boolean isDGGSSchema(SimpleFeatureType schema) {
-        return checkAttribute(schema, zoneIdColumn, String.class)
+        return checkAttribute(schema, zoneIdAttribute, String.class)
                 && checkAttribute(schema, RESOLUTION, Byte.class, Short.class, Integer.class)
                 && schema.getDescriptor(GEOMETRY) == null;
     }
@@ -222,17 +219,17 @@ public class DGGSDataStore implements DGGSStore {
             }
 
             @Override
-            public SimpleFeature next() throws IOException, IllegalArgumentException, NoSuchElementException {
+            public SimpleFeature next() throws IllegalArgumentException, NoSuchElementException {
                 return features.next();
             }
 
             @Override
-            public boolean hasNext() throws IOException {
+            public boolean hasNext() {
                 return features.hasNext();
             }
 
             @Override
-            public void close() throws IOException {
+            public void close() {
                 features.next();
             }
         };

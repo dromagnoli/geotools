@@ -22,7 +22,7 @@ import org.geotools.factory.CommonFactoryFinder;
 /** Implemented by functions needing a {@link DGGSInstance} reference to work, and used by {@link DGGSFilterVisitor}. */
 public interface DGGSFunction {
 
-    public static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
+    FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
-    public void setDGGSInstance(DGGSInstance instance);
+    void setDGGSInstance(DGGSInstance instance);
 }

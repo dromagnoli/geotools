@@ -22,6 +22,7 @@ import java.util.Set;
 import java.util.stream.Stream;
 import org.geotools.api.data.Query;
 import org.geotools.api.feature.simple.SimpleFeatureType;
+import org.geotools.api.feature.type.AttributeDescriptor;
 import org.geotools.api.filter.Filter;
 import org.geotools.api.filter.FilterFactory;
 import org.geotools.api.filter.PropertyIsEqualTo;
@@ -37,7 +38,7 @@ import org.geotools.filter.visitor.SimplifyingFilterVisitor;
 import org.geotools.jdbc.BasicSQLDialect;
 
 /**
- * Splits a Query into a Query that cna be run against the delegate alphanumeric datastore, and a post-filter that
+ * Splits a Query into a Query that can be run against the delegate alphanumeric datastore, and a post-filter that
  * should be run against the resulting DGGS feature collection (containing the spatial bits that could not be turned
  * into zoneId filters).
  */
@@ -46,9 +47,9 @@ public class DGGSQuerySplitter {
     private static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
     private final SimpleFeatureType schema;
-    private DGGSInstance dggs;
-    private DGGSResolutionCalculator resolutionCalculator;
-    private String zoneAttribute;
+    private final DGGSInstance dggs;
+    private final DGGSResolutionCalculator resolutionCalculator;
+    private final AttributeDescriptor zoneAttribute;
 
     public static class PrePost {
         public Query pre;
@@ -56,7 +57,10 @@ public class DGGSQuerySplitter {
     }
 
     public DGGSQuerySplitter(
-            DGGSInstance dggs, DGGSResolutionCalculator resolutionCalculator, SimpleFeatureType schema, String zoneAttribute) {
+            DGGSInstance dggs,
+            DGGSResolutionCalculator resolutionCalculator,
+            SimpleFeatureType schema,
+            AttributeDescriptor zoneAttribute) {
         this.dggs = dggs;
         this.zoneAttribute = zoneAttribute;
         this.resolutionCalculator = resolutionCalculator;
@@ -111,11 +115,14 @@ public class DGGSQuerySplitter {
 
         // remove the geometry property, delegate does not have it, replace it with
         // zoneId if necessary
+        String zoneAttributeName = zoneAttribute.getLocalName();
         if (query.getPropertyNames() != null) {
             Set<String> requestedProperties = new HashSet<>(Arrays.asList(query.getPropertyNames()));
-            Stream<String> namesStream = Arrays.stream(query.getPropertyNames()).filter(n -> !DGGSDataStore.GEOMETRY.equals(n));
-            if (requestedProperties.contains(DGGSDataStore.GEOMETRY) && !requestedProperties.contains(zoneAttribute)) {
-                namesStream = Stream.concat(namesStream, Stream.of(zoneAttribute));
+            Stream<String> namesStream =
+                    Arrays.stream(query.getPropertyNames()).filter(n -> !DGGSDataStore.GEOMETRY.equals(n));
+            if (requestedProperties.contains(DGGSDataStore.GEOMETRY)
+                    && !requestedProperties.contains(zoneAttributeName)) {
+                namesStream = Stream.concat(namesStream, Stream.of(zoneAttributeName));
             }
             String[] delegateProperties = namesStream.toArray(n -> new String[n]);
 
@@ -126,15 +133,15 @@ public class DGGSQuerySplitter {
         if (query.getSortBy() != null) {
             SortBy[] adaptedSort = Arrays.stream(query.getSortBy())
                     .map(sb -> {
-                        if (sb == SortBy.NATURAL_ORDER) return FF.sort(zoneAttribute, SortOrder.ASCENDING);
-                        if (sb == SortBy.REVERSE_ORDER) return FF.sort(zoneAttribute, SortOrder.DESCENDING);
+                        if (sb == SortBy.NATURAL_ORDER) return FF.sort(zoneAttributeName, SortOrder.ASCENDING);
+                        if (sb == SortBy.REVERSE_ORDER) return FF.sort(zoneAttributeName, SortOrder.DESCENDING);
                         return sb;
                     })
                     .toArray(n -> new SortBy[n]);
             result.setSortBy(adaptedSort);
         } else if (query.getStartIndex() != null || query.getMaxFeatures() < Integer.MAX_VALUE) {
             // need a sort to do paging, the underlying store might not have a primary key
-            result.setSortBy(new SortBy[] {FF.sort(zoneAttribute, SortOrder.ASCENDING)});
+            result.setSortBy(FF.sort(zoneAttributeName, SortOrder.ASCENDING));
         }
 
         // reproject query spatial filters?
@@ -148,7 +155,7 @@ public class DGGSQuerySplitter {
                 resolutionCalculator.getTargetResolution(query, DGGSFilterTransformer.RESOLUTION_NOT_SPECIFIED);
 
         // turn all spatial filters into checks against zoneId, if possible
-        Filter adapted = DGGSFilterTransformer.adapt(filter, dggs, resolutionCalculator, resolution);
+        Filter adapted = DGGSFilterTransformer.adapt(filter, dggs, resolutionCalculator, resolution, zoneAttribute);
         if (resolution != DGGSFilterTransformer.RESOLUTION_NOT_SPECIFIED) {
             PropertyIsEqualTo resolutionFilter = FF.equals(FF.property(DGGSStore.RESOLUTION), FF.literal(resolution));
             result.setFilter(FF.and(adapted, resolutionFilter));

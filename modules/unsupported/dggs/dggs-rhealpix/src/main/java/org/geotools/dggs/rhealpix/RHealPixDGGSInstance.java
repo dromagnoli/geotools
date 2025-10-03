@@ -41,7 +41,6 @@ import org.geotools.api.filter.FilterFactory;
 import org.geotools.data.store.EmptyIterator;
 import org.geotools.dggs.DGGSInstance;
 import org.geotools.dggs.Zone;
-import org.geotools.dggs.gstore.DGGSStore;
 import org.geotools.feature.AttributeTypeBuilder;
 import org.geotools.filter.function.FilterFunction_offset;
 import org.geotools.geometry.jts.JTS;
@@ -485,7 +484,8 @@ public class RHealPixDGGSInstance implements DGGSInstance {
     }
 
     @Override
-    public Filter getChildFilter(FilterFactory ff, String zoneId, int resolution, boolean upTo) {
-        return ff.like(ff.property(DGGSStore.ZONE_COLUMN), zoneId + "%", "%", "?", "\\", true);
+    public Filter getChildFilter(
+            FilterFactory ff, String zoneId, int resolution, boolean upTo, AttributeDescriptor zoneAttribute) {
+        return ff.like(ff.property(zoneAttribute.getLocalName()), zoneId + "%", "%", "?", "\\", true);
     }
 }

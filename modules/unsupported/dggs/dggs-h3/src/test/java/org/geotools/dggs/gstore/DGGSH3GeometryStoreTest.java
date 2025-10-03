@@ -56,7 +56,7 @@ import org.junit.Assume;
 import org.junit.Before;
 import org.junit.Test;
 
-public class DGGSGeometryStoreTest {
+public class DGGSH3GeometryStoreTest {
 
     private static final String NAMESPACE = "http://this.is/my/test/namespace";
     private final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
