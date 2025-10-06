@@ -16,13 +16,16 @@
  */
 package org.geotools.dggs.clickhouse;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.geotools.data.DefaultRepository;
 import org.geotools.dggs.DGGSFactoryFinder;
 import org.geotools.dggs.datastore.DGGSDataStore;
 import org.geotools.dggs.datastore.DGGSStoreFactory;
+import org.geotools.jdbc.JDBCDataStore;
 import org.geotools.test.OnlineTestCase;
 import org.geotools.util.logging.Logging;
 
@@ -38,6 +41,50 @@ public abstract class ClickHouseOnlineTestCase extends OnlineTestCase {
         setupTestData(dataStore);
     }
 
+    protected DefaultRepository buildRepository(Properties props) throws Exception {
+        Map<String, Object> ch = new HashMap<>();
+
+        String db = props.getProperty("database", "default");
+        String baseUrl = props.getProperty("url");
+        String host = props.getProperty("host", "localhost");
+        String port = props.getProperty("port", "8123");
+        String user = props.getProperty("user", "default");
+        String passwd = props.getProperty("password", "pwd");
+        if (baseUrl == null) {
+            baseUrl = "jdbc:clickhouse://" + host + ":" + port + "/" + db;
+        }
+        ch.put("dbtype", props.getProperty("dbtype", "clickhouse")); // your JDBC plugin’s type
+        ch.put("host", host);
+        ch.put("port", Integer.parseInt(port));
+        ch.put("database", db);
+        ch.put("user", user);
+        ch.put("passwd", passwd);
+
+        try (java.sql.Connection c = java.sql.DriverManager.getConnection(baseUrl, user, passwd)) {
+            try (java.sql.Statement st = c.createStatement()) {
+                st.execute("CREATE DATABASE IF NOT EXISTS " + db);
+            }
+        }
+
+        ClickHouseJDBCDataStoreFactory factory = new ClickHouseJDBCDataStoreFactory();
+        JDBCDataStore clickHouseStore = factory.createDataStore(ch);
+        if (clickHouseStore == null) {
+            throw new IllegalStateException("Could not create ClickHouse DataStore from properties: " + ch);
+        }
+
+        DefaultRepository repo = new DefaultRepository();
+        repo.register("test", clickHouseStore);
+        return repo;
+    }
+
+    public static Map<String, Object> toParamMap(Properties props) {
+        Map<String, Object> m = new HashMap<>();
+        for (String k : props.stringPropertyNames()) {
+            m.put(k, props.getProperty(k));
+        }
+        return m;
+    }
+
     /** Subclasses should override this to create the test data. */
     protected abstract void setupTestData(DGGSDataStore dataStore) throws Exception;
 
@@ -49,7 +96,12 @@ public abstract class ClickHouseOnlineTestCase extends OnlineTestCase {
 
         DGGSStoreFactory factory = new DGGSStoreFactory();
         @SuppressWarnings("unchecked")
-        Map<String, ?> params = (Map) fixture;
+        Map<String, Object> params = toParamMap(fixture);
+        params.put(DGGSStoreFactory.STORE_NAME.key, "test");
+        // Use the exact Param key your DGGSStoreFactory declares, e.g. "repository"
+        params.put(DGGSStoreFactory.REPOSITORY.key, buildRepository(fixture));
+        params.put(DGGSStoreFactory.ZONE_ID_COLUMN_NAME.key, "zoneId");
+
         return (DGGSDataStore) factory.createDataStore(params);
     }
 
@@ -75,7 +127,7 @@ public abstract class ClickHouseOnlineTestCase extends OnlineTestCase {
         fixture.put("driver", ClickHouseJDBCDataStoreFactory.DRIVER_CLASSNAME);
         fixture.put("url", "jdbc:clickhouse://localhost:8123/test");
         fixture.put("host", "localhost");
-        fixture.put("database", "test");
+        fixture.put("database", "default");
         fixture.put("port", "8123");
         fixture.put("user", "default");
         fixture.put("password", "");

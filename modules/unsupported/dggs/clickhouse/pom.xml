@@ -36,14 +36,20 @@
       <version>${project.version}</version>
     </dependency>
     <dependency>
-      <groupId>org.mockito</groupId>
-      <artifactId>mockito-core</artifactId>
-      <scope>test</scope>
+      <groupId>org.lz4</groupId>
+      <artifactId>lz4-java</artifactId>
+      <version>1.8.0</version>
+
     </dependency>
     <dependency>
       <groupId>com.clickhouse</groupId>
       <artifactId>clickhouse-jdbc</artifactId>
       <version>0.6.4</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.geotools</groupId>
@@ -54,6 +60,11 @@
       <groupId>org.geotools</groupId>
       <artifactId>gt-jdbc</artifactId>
       <classifier>tests</classifier>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-epsg-hsql</artifactId>
       <scope>test</scope>
     </dependency>
     <dependency>
@@ -68,6 +79,5 @@
       <version>${project.version}</version>
       <scope>test</scope>
     </dependency>
-
   </dependencies>
 </project>

@@ -39,7 +39,7 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
 
     /** Logical store name (used by your store to resolve tables/collections/etc.) */
     public static final Param STORE_NAME = new Param(
-            "store_name", String.class, "Logical store name for this repository (schema, namespace, etc.)", true, null);
+            "storeName", String.class, "Logical store name for this repository (schema, namespace, etc.)", true, null);
 
     /** Repository instance to be used by the store. */
     public static final Param REPOSITORY = new Param(
