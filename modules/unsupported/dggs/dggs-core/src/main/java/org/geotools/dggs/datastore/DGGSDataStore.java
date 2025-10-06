@@ -290,7 +290,7 @@ public class DGGSDataStore implements DGGSStore {
         return delegate;
     }
 
-    protected DGGSInstance getDggs() {
+    public DGGSInstance getDggs() {
         return dggs;
     }
 

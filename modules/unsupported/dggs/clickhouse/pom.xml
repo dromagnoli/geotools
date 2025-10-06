@@ -6,22 +6,68 @@
     <artifactId>dggs</artifactId>
     <version>34-SNAPSHOT</version>
   </parent>
+  <groupId>org.geotools.dggs</groupId>
   <artifactId>gt-clickhouse</artifactId>
   <name>Clickhouse</name>
   <dependencies>
     <dependency>
+      <groupId>org.geotools.dggs</groupId>
+      <artifactId>gt-dggs-core</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
       <groupId>org.geotools</groupId>
       <artifactId>gt-main</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-metadata</artifactId>
+      <version>${project.version}</version>
     </dependency>
     <dependency>
       <groupId>org.geotools</groupId>
       <artifactId>gt-jdbc</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-api</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.mockito</groupId>
+      <artifactId>mockito-core</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>com.clickhouse</groupId>
+      <artifactId>clickhouse-jdbc</artifactId>
+      <version>0.6.4</version>
+    </dependency>
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-sample-data</artifactId>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.geotools</groupId>
+      <artifactId>gt-jdbc</artifactId>
+      <classifier>tests</classifier>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.geotools.dggs</groupId>
-      <artifactId>gt-dggs-core</artifactId>
-      <version>34-SNAPSHOT</version>
-      <scope>compile</scope>
+      <artifactId>gt-dggs-h3</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
     </dependency>
+    <dependency>
+      <groupId>org.geotools.dggs</groupId>
+      <artifactId>gt-dggs-rhealpix</artifactId>
+      <version>${project.version}</version>
+      <scope>test</scope>
+    </dependency>
+
   </dependencies>
 </project>

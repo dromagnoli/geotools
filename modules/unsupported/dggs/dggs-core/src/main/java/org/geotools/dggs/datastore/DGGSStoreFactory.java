@@ -98,6 +98,7 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
 
     @Override
     public Param[] getParametersInfo() {
+        // TODO: Check the delegate params and add them back?
         /*Stream<Param> delegateParams = Stream.of(delegate.getParametersInfo())
                 .filter(p -> !JDBCDataStoreFactory.DBTYPE.key.equals(p.key)
                         && !JDBCDataStoreFactory.SCHEMA.key.equals(p.key));
@@ -109,9 +110,4 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
     public boolean isAvailable() {
         return DGGSFactoryFinder.getExtensionFactories().findAny().isPresent();
     }
-
-    /*
-    protected DataSource createDataSource(Map<String, ?> params) throws IOException {
-        return delegate.createDataSource(params);
-    }*/
 }

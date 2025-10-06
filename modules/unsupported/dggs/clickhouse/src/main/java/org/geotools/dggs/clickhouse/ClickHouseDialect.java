@@ -35,6 +35,7 @@ import org.geotools.api.feature.type.GeometryDescriptor;
 import org.geotools.data.jdbc.FilterToSQL;
 import org.geotools.jdbc.BasicSQLDialect;
 import org.geotools.jdbc.JDBCDataStore;
+import org.geotools.jdbc.SQLDialect;
 import org.geotools.util.factory.Hints;
 import org.locationtech.jts.geom.Envelope;
 import org.locationtech.jts.geom.Geometry;
@@ -79,7 +80,7 @@ class ClickHouseDialect extends BasicSQLDialect {
     @Override
     public FilterToSQL createFilterToSQL() {
         FilterToSQL f2s = new ClickHouseFilterToSQL();
-        f2s.setCapabilities(BASE_DBMS_CAPABILITIES);
+        f2s.setCapabilities(SQLDialect.BASE_DBMS_CAPABILITIES);
         return f2s;
     }
 
