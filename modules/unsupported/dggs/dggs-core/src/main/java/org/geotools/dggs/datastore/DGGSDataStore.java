@@ -198,11 +198,13 @@ public class DGGSDataStore implements DGGSStore {
     @Override
     @SuppressWarnings("PMD.UseTryWithResources") // cannot be done on a long lived field
     public void dispose() {
-        try {
+        /*        try {
+            // Since we wen't through the repository to get the delegate, we should not close it
+            // ourselves
             delegate.dispose();
-        } finally {
-            dggs.close();
-        }
+        } finally {*/
+        dggs.close();
+        // }
     }
 
     @Override

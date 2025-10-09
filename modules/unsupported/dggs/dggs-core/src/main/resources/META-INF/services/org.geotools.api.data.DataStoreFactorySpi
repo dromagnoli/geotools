@@ -1,1 +1,2 @@
 org.geotools.dggs.gstore.DGGSGeometryStoreFactory
+org.geotools.dggs.datastore.DGGSStoreFactory

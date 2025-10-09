@@ -77,12 +77,14 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
         }
 
         String zoneIdAttribute = (String) ZONE_ID_COLUMN_NAME.lookUp(params);
-
-        /*Map<String, Object> delegateParams = new HashMap<>(params);
-        delegateParams.put(JDBCDataStoreFactory.DBTYPE.key, DATABASE_ID);
-        delegateParams.put(JDBCDataStoreFactory.SCHEMA.key, params.get(JDBCDataStoreFactory.DATABASE.key));*/
-        Name name = new NameImpl(storeName);
+        String[] storeNameParts = storeName.split(":");
+        Name name = storeNameParts.length == 2
+                ? new NameImpl(storeNameParts[0], storeNameParts[1])
+                : new NameImpl(storeName);
         DataStore datastore = repository.dataStore(name);
+        if (datastore == null) {
+            throw new IOException("Could not find a DataStore named '" + storeName + "' in the provided repository.");
+        }
         return new DGGSDataStore(dggs, datastore, zoneIdAttribute);
     }
 

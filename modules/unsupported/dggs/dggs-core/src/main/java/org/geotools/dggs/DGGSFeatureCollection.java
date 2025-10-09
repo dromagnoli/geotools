@@ -256,7 +256,7 @@ public class DGGSFeatureCollection implements SimpleFeatureCollection {
     @Override
     public SimpleFeatureCollection sort(SortBy order) {
         // TODO: optimize it so that the delegate feature collection is rebuilt instead
-        return new SortedSimpleFeatureCollection(delegate, new SortBy[] {order});
+        return new SortedSimpleFeatureCollection(delegate, order);
     }
 
     @Override
@@ -286,7 +286,7 @@ public class DGGSFeatureCollection implements SimpleFeatureCollection {
         for (AttributeDescriptor ad : schema.getAttributeDescriptors()) {
             String name = ad.getLocalName();
             if (DGGSDataStore.GEOMETRY.equals(name)) {
-                Zone zone = dggs.getZone((String) next.getAttribute("zoneId"));
+                Zone zone = dggs.getZone((String) next.getAttribute(zoneIdColumn));
                 fb.add(zone.getBoundary());
             } else {
                 fb.add(next.getAttribute(name));
