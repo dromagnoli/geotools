@@ -90,7 +90,7 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
 
     @Override
     public String getDisplayName() {
-        return "Generic Repository + DGGS integration";
+        return "DGGS Datastore";
     }
 
     @Override
