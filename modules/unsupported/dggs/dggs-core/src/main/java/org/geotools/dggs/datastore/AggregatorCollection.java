@@ -22,7 +22,10 @@ import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.logging.Level;
@@ -245,7 +248,12 @@ public class AggregatorCollection extends DecoratingSimpleFeatureCollection {
             try {
                 List<Object> key = new ArrayList<>();
                 for (int i = 0; i < groupSize; i++) {
-                    key.add(rs.getObject(i + 1));
+                    Object objectKey = rs.getObject(i + 1);
+                    if (objectKey instanceof OffsetDateTime odt) {
+                        objectKey = Date.from(
+                                odt.withOffsetSameInstant(ZoneOffset.UTC).toInstant());
+                    }
+                    key.add(objectKey);
                 }
                 List<Object> values = new ArrayList<>();
                 for (int i = 0; i < resultSize; i++) {

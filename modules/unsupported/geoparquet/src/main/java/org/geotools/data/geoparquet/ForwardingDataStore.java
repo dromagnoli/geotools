@@ -30,6 +30,8 @@ import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
 import org.geotools.api.feature.type.Name;
 import org.geotools.api.filter.Filter;
+import org.geotools.jdbc.JDBCDataStore;
+import org.geotools.util.decorate.Wrapper;
 
 /**
  * A decorator implementation of the DataStore interface that forwards all method calls to a delegate DataStore
@@ -40,7 +42,7 @@ import org.geotools.api.filter.Filter;
  *
  * @param <S> The type of DataStore being decorated
  */
-public class ForwardingDataStore<S extends DataStore> implements DataStore {
+public class ForwardingDataStore<S extends DataStore> implements DataStore, Wrapper {
 
     protected final S delegate;
 
@@ -145,5 +147,19 @@ public class ForwardingDataStore<S extends DataStore> implements DataStore {
     @Override
     public LockingManager getLockingManager() {
         return delegate.getLockingManager();
+    }
+
+    @Override
+    public boolean isWrapperFor(Class<?> aClass) {
+        return JDBCDataStore.class.isAssignableFrom(aClass);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> T unwrap(Class<T> aClass) throws IllegalArgumentException {
+        if (isWrapperFor(aClass)) {
+            return (T) delegate;
+        }
+        return null;
     }
 }
