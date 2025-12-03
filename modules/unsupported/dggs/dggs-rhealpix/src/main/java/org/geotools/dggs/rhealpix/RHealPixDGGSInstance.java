@@ -489,8 +489,8 @@ public class RHealPixDGGSInstance implements DGGSInstance<String> {
     }
 
     @Override
-    public String parseId(String text) {
-        return text;
+    public String parseId(String id) {
+        return id;
     }
 
     @Override

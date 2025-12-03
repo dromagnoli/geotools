@@ -191,9 +191,36 @@ public interface DGGSInstance<I> extends AutoCloseable {
      */
     Filter getChildFilter(FilterFactory ff, I zoneId, int resolution, boolean upTo, AttributeDescriptor zoneAttribute);
 
-    I parseId(String text);
+    I parseId(String id);
 
     Class<I> idType();
 
-    default Zone getZoneFromString(String text) {return getZone(parseId(text));}
+    // Default method for String support
+    default Zone getZoneFromString(String id) {
+        return getZone(parseId(id));
+    }
+
+    default Iterator<Zone> parentsFromString(String id) {
+        return parents(parseId(id));
+    }
+
+    default Iterator<Zone> neighborsFromString(String id, int radius) {
+        return neighbors(parseId(id), radius);
+    }
+
+    default Iterator<Zone> childrenFromString(String id, int resolution) {
+        return children(parseId(id), resolution);
+    }
+
+    default long countNeighborsFromString(String id, int resolution) {
+        return countNeighbors(parseId(id), resolution);
+    }
+
+    default long countChildrenFromString(String id, int resolution) {
+        return countChildren(parseId(id), resolution);
+    }
+
+    default long countParentsFromString(String id) {
+        return countParents(parseId(id));
+    }
 }

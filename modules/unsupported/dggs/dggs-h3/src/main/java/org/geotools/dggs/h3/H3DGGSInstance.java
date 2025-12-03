@@ -20,6 +20,7 @@ import com.uber.h3core.H3Core;
 import com.uber.h3core.util.GeoCoord;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
@@ -285,7 +286,7 @@ public class H3DGGSInstance implements DGGSInstance<Long> {
         // Using H3 facilities. Upside fast and accurate (considering dateline and pole neighbors
         // too), downside, will quickly go OOM, radius should be limited
         return this.h3.kRing(h3Id, radius).stream()
-                .filter(zoneId -> h3Id != zoneId)
+                .filter(zoneId -> !h3Id.equals(zoneId))
                 .map(zoneId -> (Zone) new H3Zone(this, zoneId))
                 .iterator();
     }
@@ -306,10 +307,8 @@ public class H3DGGSInstance implements DGGSInstance<Long> {
                 id -> h3.h3GetResolution(id) < resolution,
                 id -> h3.h3GetResolution(id) == resolution,
                 id -> new H3Zone(this, id),
-                Arrays.asList(zoneId));
+                Collections.singletonList(zoneId));
     }
-
-
 
     @Override
     public Iterator<Zone> parents(Long zoneId) {
@@ -363,8 +362,8 @@ public class H3DGGSInstance implements DGGSInstance<Long> {
     }
 
     @Override
-    public Long parseId(String text) {
-        return h3.stringToH3(text);
+    public Long parseId(String id) {
+        return h3.stringToH3(id);
     }
 
     @Override
@@ -377,5 +376,4 @@ public class H3DGGSInstance implements DGGSInstance<Long> {
         long id = parseId(zoneId);
         return getChildFilter(ff, id, resolution, upTo, zoneAttribute);
     }
-
 }
