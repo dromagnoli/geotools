@@ -53,7 +53,7 @@ public class ParentsFunction extends DGGSSetFunctionBase {
         return matches(testedZoneId, () -> {
             // check params
             String referenceZoneId = (String) getParameterValue(object, 1);
-            DGGSInstance dggs = (DGGSInstance) getParameterValue(object, 2);
+            DGGSInstance<?> dggs = (DGGSInstance) getParameterValue(object, 2);
             if (referenceZoneId == null || dggs == null) return Collections.emptyIterator();
 
             // check resolution first

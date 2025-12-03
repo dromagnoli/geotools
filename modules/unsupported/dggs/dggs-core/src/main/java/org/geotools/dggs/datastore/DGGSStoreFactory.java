@@ -72,7 +72,7 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
     public DataStore createDataStore(Map<String, ?> params) throws IOException {
         // setup the DGGS instance
         String factoryId = (String) DGGS_FACTORY_ID.lookUp(params);
-        DGGSInstance dggs = DGGSFactoryFinder.createInstance(factoryId, params);
+        DGGSInstance<?> dggs = DGGSFactoryFinder.createInstance(factoryId, params);
 
         String storeName = (String) STORE_NAME.lookUp(params);
         Repository repository = (Repository) REPOSITORY.lookUp(params);
@@ -86,7 +86,7 @@ public class DGGSStoreFactory implements DataStoreFactorySpi {
         if (datastore == null) {
             throw new IOException("Could not find a DataStore named '" + storeName + "' in the provided repository.");
         }
-        return new DGGSDataStore(dggs, datastore, zoneIdAttribute, resolution);
+        return new DGGSDataStore<>(dggs, datastore, zoneIdAttribute, resolution);
     }
 
     @Override

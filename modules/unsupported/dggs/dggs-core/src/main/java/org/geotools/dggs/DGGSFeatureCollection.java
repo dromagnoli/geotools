@@ -53,16 +53,16 @@ import org.geotools.feature.visitor.GroupByVisitor.GroupByRawResult;
 import org.geotools.filter.FilterAttributeExtractor;
 import org.geotools.geometry.jts.ReferencedEnvelope;
 
-public class DGGSFeatureCollection implements SimpleFeatureCollection {
+public class DGGSFeatureCollection<I> implements SimpleFeatureCollection {
     private static final FilterFactory FF = CommonFactoryFinder.getFilterFactory();
 
     private final SimpleFeatureType schema;
-    private final DGGSInstance dggs;
+    private final DGGSInstance<I> dggs;
     private final String zoneIdColumn;
     private final SimpleFeatureCollection delegate;
 
     public DGGSFeatureCollection(
-            SimpleFeatureCollection delegate, SimpleFeatureType schema, String zoneIdColumn, DGGSInstance dggs) {
+            SimpleFeatureCollection delegate, SimpleFeatureType schema, String zoneIdColumn, DGGSInstance<I> dggs) {
         this.delegate = delegate;
         this.schema = schema;
         this.dggs = dggs;
@@ -129,7 +129,8 @@ public class DGGSFeatureCollection implements SimpleFeatureCollection {
                 .map(e -> {
                     // the key is a list of grouping attribute values, we need to map the zone id back to the geometry
                     List<Object> key = e.getKey();
-                    Zone zone = dggs.getZone((String) key.get(geometryIdx));
+                    Object geometryKey = key.get(geometryIdx);
+                    Zone zone = getZoneFromRawId(dggs, geometryKey);
                     key.set(geometryIdx, zone.getBoundary());
                     return new GroupByRawResult(key, e.getValue());
                 })
@@ -286,12 +287,37 @@ public class DGGSFeatureCollection implements SimpleFeatureCollection {
         for (AttributeDescriptor ad : schema.getAttributeDescriptors()) {
             String name = ad.getLocalName();
             if (DGGSDataStore.GEOMETRY.equals(name)) {
-                Zone zone = dggs.getZone((String) next.getAttribute(zoneIdColumn));
+                Object rawId = next.getAttribute(zoneIdColumn);
+                Zone zone = getZoneFromRawId(dggs, rawId);
                 fb.add(zone.getBoundary());
             } else {
                 fb.add(next.getAttribute(name));
             }
         }
         return fb.buildFeature(next.getID());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <I> Zone getZoneFromRawId(DGGSInstance<I> dggs, Object rawId) {
+        if (rawId == null) {
+            return null;
+        }
+
+        Class<I> idType = dggs.idType();
+
+        I typedId;
+
+        if (idType == Long.class && rawId instanceof Number n) {
+            // H3 case: datastore stores numeric (Int/Long/UInt64)
+            typedId = (I) Long.valueOf(n.longValue());
+        } else if (idType == String.class && rawId instanceof String s) {
+            // String-based DGGS, already fine
+            typedId = (I) s;
+        } else {
+            // Fallback: go through parseId(String)
+            typedId = dggs.parseId(rawId.toString());
+        }
+
+        return dggs.getZone(typedId);
     }
 }

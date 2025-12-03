@@ -43,7 +43,7 @@ import org.locationtech.jts.geom.Polygon;
 import org.locationtech.jts.operation.predicate.RectangleContains;
 import org.locationtech.jts.operation.predicate.RectangleIntersects;
 
-public class H3DGGSInstance implements DGGSInstance {
+public class H3DGGSInstance implements DGGSInstance<Long> {
 
     final H3Core h3;
     final GeometryFactory gf = new GeometryFactory(new LiteCoordinateSequenceFactory());
@@ -80,10 +80,18 @@ public class H3DGGSInstance implements DGGSInstance {
     }
 
     @Override
+    public Zone getZone(Long lid) throws IllegalArgumentException {
+        try {
+            return new H3Zone(this, lid);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("Could not build zone from id, is the id valid?", e);
+        }
+    }
+
     public Zone getZone(String id) throws IllegalArgumentException {
         try {
             long lid = h3.stringToH3(id);
-            return new H3Zone(this, lid);
+            return getZone(lid);
         } catch (Exception e) {
             throw new IllegalArgumentException("Could not build zone from id, is the id valid?", e);
         }
@@ -273,18 +281,22 @@ public class H3DGGSInstance implements DGGSInstance {
     }
 
     @Override
-    public Iterator<Zone> neighbors(String id, int radius) {
+    public Iterator<Zone> neighbors(Long h3Id, int radius) {
         // Using H3 facilities. Upside fast and accurate (considering dateline and pole neighbors
         // too), downside, will quickly go OOM, radius should be limited
-        long h3Id = this.h3.stringToH3(id);
         return this.h3.kRing(h3Id, radius).stream()
                 .filter(zoneId -> h3Id != zoneId)
                 .map(zoneId -> (Zone) new H3Zone(this, zoneId))
                 .iterator();
     }
 
+    public Iterator<Zone> neighbors(String id, int radius) {
+        long h3Id = parseId(id);
+        return neighbors(h3Id, radius);
+    }
+
     @Override
-    public Iterator<Zone> children(String zoneId, int resolution) {
+    public Iterator<Zone> children(Long zoneId, int resolution) {
         Zone zone = getZone(zoneId);
         if (zone.getResolution() >= resolution) return new EmptyIterator<>();
 
@@ -294,13 +306,19 @@ public class H3DGGSInstance implements DGGSInstance {
                 id -> h3.h3GetResolution(id) < resolution,
                 id -> h3.h3GetResolution(id) == resolution,
                 id -> new H3Zone(this, id),
-                Arrays.asList(h3.stringToH3(zoneId)));
+                Arrays.asList(zoneId));
     }
 
+
+
     @Override
+    public Iterator<Zone> parents(Long zoneId) {
+        return new H3ParentIterator(zoneId, this);
+    }
+
     public Iterator<Zone> parents(String zoneId) {
-        long id = h3.stringToH3(zoneId);
-        return new H3ParentIterator(id, this);
+        long id = parseId(zoneId);
+        return parents(id);
     }
 
     @Override
@@ -333,9 +351,8 @@ public class H3DGGSInstance implements DGGSInstance {
 
     @Override
     public Filter getChildFilter(
-            FilterFactory ff, String zoneId, int resolution, boolean upTo, AttributeDescriptor zoneAttribute) {
-        long id = h3.stringToH3(zoneId);
-        H3Index idx = new H3Index(id);
+            FilterFactory ff, Long zoneId, int resolution, boolean upTo, AttributeDescriptor zoneAttribute) {
+        H3Index idx = new H3Index(zoneId);
         long lowest = idx.lowestIdChild(resolution);
         long highest = idx.highestIdChild(resolution);
         String lowestId = h3.h3ToString(lowest);
@@ -344,4 +361,21 @@ public class H3DGGSInstance implements DGGSInstance {
                 ff.between(ff.property(zoneAttribute.getLocalName()), ff.literal(lowestId), ff.literal(highestId));
         return matchFilter;
     }
+
+    @Override
+    public Long parseId(String text) {
+        return h3.stringToH3(text);
+    }
+
+    @Override
+    public Class<Long> idType() {
+        return Long.class;
+    }
+
+    public Filter getChildFilter(
+            FilterFactory ff, String zoneId, int resolution, boolean upTo, AttributeDescriptor zoneAttribute) {
+        long id = parseId(zoneId);
+        return getChildFilter(ff, id, resolution, upTo, zoneAttribute);
+    }
+
 }
