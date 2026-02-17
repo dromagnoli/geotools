@@ -78,12 +78,12 @@ import org.geotools.coverage.io.util.DoubleRangeTreeSet;
 import org.geotools.coverage.io.util.NumberRangeComparator;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.feature.NameImpl;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages.Coverage;
 import org.geotools.gce.imagemosaic.catalog.index.SchemaType;
 import org.geotools.geometry.jts.ReferencedEnvelope;
+import org.geotools.imageio.netcdf.NetCDFDimensionIndexes.DimensionIndexesContext;
 import org.geotools.imageio.netcdf.NetCDFGeoreferenceManager.DimensionMapper;
 import org.geotools.imageio.netcdf.cv.CoordinateVariable;
 import org.geotools.imageio.netcdf.utilities.NetCDFCRSUtilities;
@@ -437,8 +437,6 @@ public class VariableAdapter extends CoverageSourceDescriptor {
 
     private CoordinateReferenceSystem coordinateReferenceSystem;
 
-    private Name coverageName;
-
     private int[] nDimensionIndex;
 
     private static final java.util.logging.Logger LOGGER = Logging.getLogger(VariableAdapter.class);
@@ -514,9 +512,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
                     String schName = schema.getName();
                     final CoverageSlicesCatalog catalog = reader.getCatalog();
                     if (catalog != null) {
-                        // Current assumption is that we have a typeName for each coverage but we
-                        // should keep on working
-                        // with shared schemas
+                        // Current assumption is that we have a typeName for each coverage
                         // try with coveragename
                         SimpleFeatureType schemaType = null;
                         try {
@@ -526,6 +522,11 @@ public class VariableAdapter extends CoverageSourceDescriptor {
                         } catch (IOException e) {
                             // ok, we did not use the schema name, let's use the coverage name
                             schemaType = catalog.getSchema(coverageName);
+                        }
+                        if (schemaType == null) {
+                            // Fallback on coverageMapping schema definition
+                            schemaType = getTypeFromSchema(
+                                    coverageName, schema, reader.georeferencing.getCoordinateReferenceSystem(varName));
                         }
                         if (schemaType != null) {
                             // Schema found: proceed with remapping attributes
@@ -538,6 +539,11 @@ public class VariableAdapter extends CoverageSourceDescriptor {
                 break;
             }
         }
+    }
+
+    private SimpleFeatureType getTypeFromSchema(String coverageName, SchemaType schema, CoordinateReferenceSystem crs) {
+        String schemaDef = schema.getAttributes();
+        return NetCDFUtilities.createFeatureType(coverageName, schemaDef, crs);
     }
 
     /** Update the dimensionDescriptor attributes mapping by checking the actual attribute names from the schema */
@@ -707,6 +713,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         this.setHasVerticalDomain(true);
         final UnidataVerticalDomain verticalDomain = new UnidataVerticalDomain(cv);
         this.setVerticalDomain(verticalDomain);
+
         // TODO: Map ZAxis unit to UCUM UNIT (depending on type... elevation, level, pressure, ...)
         dimensions.add(new DefaultDimensionDescriptor(
                 Utils.ELEVATION_DOMAIN,
@@ -1009,10 +1016,9 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         return sampleModel;
     }
 
-    public VariableAdapter(NetCDFImageReader reader, Name coverageName, VariableDS variable) throws Exception {
+    public VariableAdapter(NetCDFImageReader reader, VariableDS variable) throws Exception {
         this.variableDS = variable;
         this.reader = reader;
-        this.coverageName = coverageName;
         setName(variable.getFullName());
         init();
     }
@@ -1088,6 +1094,19 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         return resultIndex;
     }
 
+    public int getLocalImageIndex(int[] indices) {
+        int localImageIndex = 0;
+        int factor = 1;
+        for (int n = 0; n < indices.length; n++) {
+            int dim = getNDimensionIndex(n);
+            if (dim >= 0) {
+                localImageIndex += indices[n] * factor;
+                factor *= NetCDFUtilities.getDimensionLength(variableDS, dim);
+            }
+        }
+        return localImageIndex;
+    }
+
     @SuppressWarnings("deprecation") // no alternative for Dimension.getFullName
     public Map<String, Integer> mapIndex(int[] splittedIndex) {
         Map<String, Integer> resultIndex = new HashMap<>();
@@ -1109,43 +1128,24 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         return variableDS.getShape();
     }
 
-    /**
-     * Return features for that variable adapter, starting from slices with index = "startIndex", and up to "limit"
-     * elements. This allows for paging. Put the created features inside the provided collection
-     *
-     * @param startIndex the first slice to be returned
-     * @param limit the max number of features to be created
-     * @param collection the feature collection where features need to be stored
-     */
-    public int getFeatures(final int startIndex, final int limit, final ListFeatureCollection collection) {
-        final SimpleFeatureType indexSchema = collection.getSchema();
-        final int slicesNum = getNumberOfSlices();
-        if (startIndex > slicesNum) {
-            throw new IllegalArgumentException(
-                    "The paging start index can't be higher than the number of available slices");
-        }
-        int lastIndex = startIndex + limit;
-        if (lastIndex > slicesNum) {
-            lastIndex = slicesNum;
-        }
-        final String varName = variableDS.getFullName();
-        for (int imageIndex = startIndex; imageIndex < lastIndex; imageIndex++) {
+    String getTimeAttributeName() {
+        return getTimeAttribute(coordinateSystem);
+    }
 
-            int[] index = splitIndex(imageIndex);
+    String getElevationAttributeName() {
+        return reader.georeferencing.getDimensionMapper().getDimension(NetCDFUtilities.ELEVATION_DIM);
+    }
 
-            // Put a new sliceIndex in the list
-            final Slice2DIndex variableIndex = new Slice2DIndex(index, varName);
-            reader.ancillaryFileManager.addSlice(variableIndex);
-
-            // Create a feature for that index to be put in the CoverageSlicesCatalog
-            final SimpleFeature feature =
-                    createFeature(coverageName.toString(), index, coordinateSystem, imageIndex, indexSchema);
-            if (feature != null) {
-                collection.add(feature);
-            } // or else it is a non-existing slice (not in catalog, but counted)
+    String getAdditionalDomainAttributeName(String domain) {
+        DimensionMapper mapper = reader.georeferencing.getDimensionMapper();
+        if (mapper.getDimensionNames().contains(domain.toUpperCase())) {
+            return mapper.getDimension(domain.toUpperCase());
         }
-        // return processed slices
-        return lastIndex - startIndex;
+        return null;
+    }
+
+    SimpleFeature createFeatureForSplitIndex(int[] splitIndex, int globalImageIndex, SimpleFeatureType indexSchema) {
+        return createFeature(splitIndex, coordinateSystem, globalImageIndex, indexSchema);
     }
 
     /**
@@ -1157,12 +1157,8 @@ public class VariableAdapter extends CoverageSourceDescriptor {
      * @param indexSchema the schema to be used to create the feature
      * @return the created {@link SimpleFeature} TODO move to variable wrapper
      */
-    private SimpleFeature createFeature(
-            final String coverageName,
-            final int[] index,
-            final CoordinateSystem cs,
-            final int imageIndex,
-            final SimpleFeatureType indexSchema) {
+    SimpleFeature createFeature(
+            final int[] index, final CoordinateSystem cs, final int imageIndex, final SimpleFeatureType indexSchema) {
 
         final SimpleFeature feature = DataUtilities.template(indexSchema);
         feature.setAttribute(
@@ -1215,6 +1211,35 @@ public class VariableAdapter extends CoverageSourceDescriptor {
         }
 
         return feature;
+    }
+
+    public static DimensionIndexesContext buildIndexContext(VariableAdapter adapter) throws IOException {
+        DimensionIndexesContext indexContext = new DimensionIndexesContext();
+
+        if (adapter.getTemporalDomain() != null) {
+            @SuppressWarnings("unchecked")
+            CoordinateVariable<Date> timeCv = adapter.getTemporalDomain().adaptee;
+            indexContext.setTime(NetCDFDimensionIndexes.forTime(timeCv));
+        }
+
+        if (adapter.getVerticalDomain() != null) {
+            indexContext.setElevation(NetCDFDimensionIndexes.forVertical(adapter.getVerticalDomain()));
+        }
+
+        if (adapter.getAdditionalDomains() != null) {
+            for (AdditionalDomain domain : adapter.getAdditionalDomains()) {
+                VariableAdapter.UnidataAdditionalDomain ud = (VariableAdapter.UnidataAdditionalDomain) domain;
+                if (domain.getType() == DomainType.DATE) {
+                    indexContext.addAdditional(NetCDFDimensionIndexes.forDateAdditional(ud));
+                } else if (domain.getType() == DomainType.NUMBER) {
+                    indexContext.addAdditional(NetCDFDimensionIndexes.forNumericAdditional(ud));
+                } else {
+                    indexContext.addAdditional(null);
+                }
+            }
+        }
+
+        return indexContext;
     }
 
     private String setFeatureTime(SimpleFeature feature, Date date, CoordinateSystem cs) {
