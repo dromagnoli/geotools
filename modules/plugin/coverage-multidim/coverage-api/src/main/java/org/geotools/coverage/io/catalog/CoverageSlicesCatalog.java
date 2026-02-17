@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -71,84 +72,67 @@ import org.geotools.util.Utilities;
  */
 public class CoverageSlicesCatalog {
 
-    /**
-     * CoverageSlicesCatalog always used an hidden H2 DB to store granules index related to a specific file.
-     *
-     * <p>Starting from 14.x it also can be setup on top of a shared PostGIS datastore.
-     *
-     * <p>Using a PostGIS shared index, we need to add a LOCATION attribute to distinguish the different granules, as
-     * well as add a Filter setting the LOCATION value to each query from a reader (1 reader <-> 1 file <-> 1 location)
-     */
-    public static class WrappedCoverageSlicesCatalog extends CoverageSlicesCatalog {
-
-        private static final FilterFactory FF = FeatureUtilities.DEFAULT_FILTER_FACTORY;
-
-        /** Internal query filter to be ANDED with the input query */
-        private Filter queryFilter;
-
-        public WrappedCoverageSlicesCatalog(DataStoreConfiguration config, File file, Repository repository)
-                throws IOException {
-            super(config, repository);
-            queryFilter =
-                    FF.equal(FF.property(CoverageSlice.Attributes.LOCATION), FF.literal(file.getCanonicalPath()), true);
-        }
-
-        @Override
-        public List<CoverageSlice> getGranules(Query q) throws IOException {
-            return super.getGranules(refineQuery(q));
-        }
-
-        @Override
-        public void computeAggregateFunction(Query query, FeatureCalc function) throws IOException {
-            super.computeAggregateFunction(refineQuery(query), function);
-        }
-
-        @Override
-        public void removeGranules(String typeName, Filter filter, Transaction transaction) throws IOException {
-            super.removeGranules(typeName, refineFilter(filter), transaction);
-        }
-
-        /** Refine query to make sure to restrict the query to the single file associated. */
-        private Query refineQuery(Query q) {
-            Query query = new Query(q);
-            query.setFilter(refineFilter(q.getFilter()));
-            return query;
-        }
-
-        /** Refine filter to make sure to AND the filter with a filter selecting the proper file */
-        private Filter refineFilter(Filter filter) {
-            return filter != null ? FF.and(filter, queryFilter) : queryFilter;
-        }
-    }
-
     /** Logger. */
     static final Logger LOGGER = org.geotools.util.logging.Logging.getLogger(CoverageSlicesCatalog.class);
 
     /** The slices index store */
     private DataStore slicesIndexStore;
 
-    /** The feature type name */
-    private Set<String> typeNames = new HashSet<>();
-
     public static final String IMAGE_INDEX_ATTR = "imageindex";
 
-    private static final String HIDDEN_FOLDER = ".mapping";
+    /**
+     * An iterator over {@link CoverageSlice}s that must be closed to release any underlying resources
+     * (feature iterators, transactions, locks).
+     */
+    public interface SliceIterator extends Iterator<CoverageSlice>, AutoCloseable {
+        @Override
+        void close();
+    }
+
+    /**
+     * Planner that can translate GeoTools {@link Query} objects into a stream of matching slices.
+     *
+     * <p>Implementations are expected to:
+     * <ul>
+     *   <li>Recognize TIME/ELEVATION (and other dimension) constraints in {@code Query#getFilter()}</li>
+     *   <li>Compute the matching tuples and their {@code imageIndex} without materializing all slices</li>
+     *   <li>Build {@link CoverageSlice} instances (or at least their originator {@link SimpleFeature}) lazily</li>
+     * </ul>
+     */
+    public interface SliceQueryPlanner {
+        SliceIterator iterate(Query query) throws IOException;
+
+        /**
+         * Optional fast-path for counts. Implementations may return {@code -1} to indicate that the
+         * catalog should fallback to counting by iteration.
+         */
+        default int count(Query query) throws IOException {
+            return -1;
+        }
+
+        /**
+         * Optional fast-path for bounds. Implementations may return {@code null} to indicate that the
+         * catalog should fallback to computing bounds by iteration.
+         */
+        default ReferencedEnvelope bounds(Query query) throws IOException {
+            return null;
+        }
+    }
+
+    private final Set<String> typeNames = new HashSet<>();
+    private final String typeName;
+    private final SimpleFeatureType schema;
+    private final SliceQueryPlanner planner;
 
     private final SoftValueHashMap<Integer, CoverageSlice> coverageSliceDescriptorsCache = new SoftValueHashMap<>(0);
 
-    private boolean repositoryStore;
-
-    public CoverageSlicesCatalog(final String database, final File parentLocation) {
-        this(database, parentLocation, null);
+    public CoverageSlicesCatalog(String typeName, SimpleFeatureType schema, SliceQueryPlanner planner) {
+        this.typeName = typeName;
+        this.schema = schema;
+        this.planner = planner;
+        this.typeNames.add(typeName);
     }
 
-    public CoverageSlicesCatalog(final String database, final File parentLocation, Repository repository) {
-        this(new DataStoreConfiguration(DataStoreConfiguration.getDefaultParams(database, parentLocation)), repository);
-    }
-
-    public CoverageSlicesCatalog(DataStoreConfiguration datastoreConfig) {
-        this(datastoreConfig, null);
-    }
 
     public CoverageSlicesCatalog(DataStoreConfiguration datastoreConfig, Repository repository) {
         DataStoreFactorySpi spi = datastoreConfig.getDatastoreSpi();
@@ -333,34 +317,6 @@ public class CoverageSlicesCatalog {
         }
     }
 
-    public void addGranule(final String typeName, final SimpleFeature granule, final Transaction transaction)
-            throws IOException {
-        Utilities.ensureNonNull("typeName", typeName);
-        Utilities.ensureNonNull("granule", granule);
-        Utilities.ensureNonNull("transaction", transaction);
-        final DefaultFeatureCollection collection = new DefaultFeatureCollection();
-        collection.add(granule);
-        addGranules(typeName, collection, transaction);
-    }
-
-    public void addGranules(
-            final String typeName, final SimpleFeatureCollection granules, final Transaction transaction)
-            throws IOException {
-        Utilities.ensureNonNull("granuleMetadata", granules);
-        final Lock lock = rwLock.writeLock();
-        lock.lock();
-        try {
-            // check if the index has been cleared
-            checkStore();
-
-            final SimpleFeatureStore store = (SimpleFeatureStore) slicesIndexStore.getFeatureSource(typeName);
-            store.setTransaction(transaction);
-            store.addFeatures(granules);
-
-        } finally {
-            lock.unlock();
-        }
-    }
 
     public List<CoverageSlice> getGranules(final Query q) throws IOException {
         Utilities.ensureNonNull("query", q);
@@ -472,6 +428,231 @@ public class CoverageSlicesCatalog {
             lock.unlock();
         }
     }
+
+
+
+
+    /**
+     * Streams matching {@link CoverageSlice}s without materializing them into a list.
+     *
+     * <p>This is the preferred entry point for callers that want to avoid eagerly loading all slices.
+     * The returned iterator must be closed to release resources.
+     */
+    public SliceIterator iterateGranules(final Query q) throws IOException {
+        Utilities.ensureNonNull("query", q);
+        // avoid mutating caller Query (propertyNames/typeName/filter might be adjusted)
+        final Query query = new Query(q);
+
+        final Lock lock = rwLock.readLock();
+        lock.lock();
+        try {
+            checkStore();
+            final String typeName = query.getTypeName();
+            final SimpleFeatureSource featureSource = slicesIndexStore.getFeatureSource(typeName);
+            if (featureSource == null) {
+                throw new NullPointerException(
+                        "The provided SimpleFeatureSource is null, it's impossible to create an index!");
+            }
+
+            Transaction tx = null;
+            if (featureSource instanceof FeatureStore store) {
+                tx = new DefaultTransaction("iterateGranulesTransaction" + System.nanoTime());
+                store.setTransaction(tx);
+            }
+
+            String[] requestedProperties = query.getPropertyNames();
+            boolean postRetypeRequired = requestedProperties != Query.ALL_NAMES;
+            SimpleFeatureType target = null;
+
+            if (postRetypeRequired) {
+                // Ensure IMAGE_INDEX_ATTR is always present (needed for caching/descriptor building)
+                List<String> propertiesList = new ArrayList<>(Arrays.asList(requestedProperties));
+                if (!propertiesList.contains(IMAGE_INDEX_ATTR)) {
+                    String[] properties = new String[requestedProperties.length + 1];
+                    System.arraycopy(requestedProperties, 0, properties, 0, requestedProperties.length);
+                    properties[requestedProperties.length] = IMAGE_INDEX_ATTR;
+                    query.setPropertyNames(properties);
+                }
+                target = SimpleFeatureTypeBuilder.retype(featureSource.getSchema(), requestedProperties);
+            }
+
+            final SimpleFeatureCollection features = featureSource.getFeatures(query);
+            if (features == null) {
+                throw new NullPointerException(
+                        "The provided SimpleFeatureCollection is null, it's impossible to create an index!");
+            }
+
+            final SimpleFeatureIterator it = features.features();
+            if (it == null) {
+                if (tx != null) {
+                    tx.close();
+                }
+                lock.unlock();
+                return new EmptySliceIterator();
+            }
+
+            return new StreamingSliceIterator(it, postRetypeRequired, target, tx, lock);
+
+        } catch (Throwable e) {
+            // make sure we don't leak the lock on construction failures
+            lock.unlock();
+            throw new IOException(e);
+        }
+    }
+
+    /**
+     * Returns the number of granules matching the provided query without loading them all.
+     * Falls back to iteration if the underlying store cannot compute counts.
+     */
+    public int getCount(final Query q) throws IOException {
+        Utilities.ensureNonNull("query", q);
+        final Query query = new Query(q);
+
+        final Lock lock = rwLock.readLock();
+        lock.lock();
+        try {
+            checkStore();
+            final SimpleFeatureSource featureSource = slicesIndexStore.getFeatureSource(query.getTypeName());
+            if (featureSource == null) {
+                return 0;
+            }
+            int count = featureSource.getCount(query);
+            if (count >= 0) {
+                return count;
+            }
+        } finally {
+            lock.unlock();
+        }
+
+        // fallback: iterate and count (still no list materialization)
+        int c = 0;
+        try (SliceIterator it = iterateGranules(query)) {
+            while (it.hasNext()) {
+                it.next();
+                c++;
+            }
+        }
+        return c;
+    }
+
+    /**
+     * Returns bounds for granules matching the provided query without loading them all.
+     * Falls back to feature-collection bounds if the underlying store can't compute it directly.
+     */
+    public ReferencedEnvelope getBounds(final Query q) throws IOException {
+        Utilities.ensureNonNull("query", q);
+        final Query query = new Query(q);
+
+        final Lock lock = rwLock.readLock();
+        lock.lock();
+        try {
+            checkStore();
+            final SimpleFeatureSource featureSource = slicesIndexStore.getFeatureSource(query.getTypeName());
+            if (featureSource == null) {
+                return null;
+            }
+            ReferencedEnvelope env = featureSource.getBounds(query);
+            if (env != null && !env.isNull()) {
+                return env;
+            }
+            // fallthrough
+        } catch (Exception e) {
+            // fallthrough to fallback
+        } finally {
+            lock.unlock();
+        }
+
+        // fallback: use feature collection bounds (may iterate internally)
+        final Lock lock2 = rwLock.readLock();
+        lock2.lock();
+        try {
+            checkStore();
+            final SimpleFeatureSource featureSource = slicesIndexStore.getFeatureSource(query.getTypeName());
+            if (featureSource == null) {
+                return null;
+            }
+            return featureSource.getFeatures(query).getBounds();
+        } finally {
+            lock2.unlock();
+        }
+    }
+
+    private static final class EmptySliceIterator implements SliceIterator {
+        @Override public boolean hasNext() { return false; }
+        @Override public CoverageSlice next() { throw new java.util.NoSuchElementException(); }
+        @Override public void close() { /* no-op */ }
+    }
+
+    /**
+     * Streams slices from an underlying feature iterator, retyping/caching as needed, and
+     * releases the held read lock when closed.
+     */
+    private final class StreamingSliceIterator implements SliceIterator {
+        private final SimpleFeatureIterator it;
+        private final boolean postRetypeRequired;
+        private final SimpleFeatureType target;
+        private final Transaction tx;
+        private final Lock heldLock;
+
+        StreamingSliceIterator(
+                SimpleFeatureIterator it,
+                boolean postRetypeRequired,
+                SimpleFeatureType target,
+                Transaction tx,
+                Lock heldLock) {
+            this.it = it;
+            this.postRetypeRequired = postRetypeRequired;
+            this.target = target;
+            this.tx = tx;
+            this.heldLock = heldLock;
+        }
+
+        @Override
+        public boolean hasNext() {
+            return it.hasNext();
+        }
+
+        @Override
+        public CoverageSlice next() {
+            SimpleFeature feature = it.next();
+            final SimpleFeature sf = feature;
+            final CoverageSlice slice;
+
+            synchronized (coverageSliceDescriptorsCache) {
+                Integer granuleIndex = (Integer) sf.getAttribute(IMAGE_INDEX_ATTR);
+                if (coverageSliceDescriptorsCache.containsKey(granuleIndex)) {
+                    slice = coverageSliceDescriptorsCache.get(granuleIndex);
+                } else {
+                    slice = new CoverageSlice(postRetypeRequired ? SimpleFeatureBuilder.retype(sf, target) : sf);
+                    coverageSliceDescriptorsCache.put(granuleIndex, slice);
+                }
+            }
+            return slice;
+        }
+
+        @Override
+        public void close() {
+            try {
+                it.close();
+            } finally {
+                try {
+                    if (tx != null) {
+                        tx.close();
+                    }
+                } finally {
+                    heldLock.unlock();
+                }
+            }
+        }
+    }
+
+
+
+
+
+
+
+
 
     public ReferencedEnvelope getBounds(final String typeName) {
         final Lock lock = rwLock.readLock();
@@ -645,4 +826,5 @@ public class CoverageSlicesCatalog {
             }
         }
     }
+
 }

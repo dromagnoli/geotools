@@ -293,7 +293,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
             file = NetCDFUtilities.getFile(input);
             if (file != null) {
                 ancillaryFileManager =
-                        new AncillaryFileManager(file, getAuxiliaryFilesPath(), getAuxiliaryDatastorePath());
+                        new AncillaryFileManager(file, getAuxiliaryFilesPath());
             }
 
             init();
@@ -309,10 +309,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         int numImages = 0;
         try {
 
-            // init slice catalog
-            DataStoreConfiguration datastoreConfig = ancillaryFileManager.getDatastoreConfiguration();
-            boolean isShared = datastoreConfig.isShared();
-            initCatalog(datastoreConfig);
+            initCatalog(null);
             final List<Variable> variables = dataset.getVariables();
             if (variables != null) {
 
@@ -336,7 +333,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         // Add the accepted variable to the list of coverages name
                         final Name coverageName = getCoverageName(varName);
                         final CoordinateSystem cs = NetCDFCRSUtilities.getCoordinateSystem(variable);
-                        final SimpleFeatureType indexSchema = getIndexSchema(coverageName, cs, isShared);
+                        final SimpleFeatureType indexSchema = getIndexSchema(coverageName, cs);
                         // get variable adapter which maps to a coverage in the end
                         final VariableAdapter vaAdapter = getCoverageDescriptor(coverageName);
 
@@ -362,11 +359,10 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         while (processedSlices < numberOfSlices) {
                             // Get a bunch of features
                             processedSlices += vaAdapter.getFeatures(startPagingIndex, limit, collection);
-                            if (variableImageStartIndex != 0 || isShared) {
+                            if (variableImageStartIndex != 0) {
                                 // Need to updated the imageIndex of the features since all indexes
                                 // are zero based inside each variable but we need to index them
-                                // inside
-                                // the whole NetCDF dataset.
+                                // inside the whole NetCDF dataset.
                                 updateFeaturesIndex(collection, variableImageStartIndex, isShared);
                             }
                             final int features = collection.size();
@@ -504,10 +500,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                         numImages = ancillaryFileManager.slicesIndexManager.getNumberOfRecords();
                         if (!ignoreMetadata) {
                             coverages.addAll(ancillaryFileManager.getCoveragesNames());
-                            DataStoreConfiguration datastoreConfiguration =
-                                    ancillaryFileManager.getDatastoreConfiguration();
-                            settingTypeNames(datastoreConfiguration);
-                            initCatalog(datastoreConfiguration);
+                            String typeNames = getTypeNames();
+                            initCatalog(typeNames);
                         }
                     }
 
@@ -538,8 +532,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         setNumImages(numImages);
     }
 
-    private void settingTypeNames(DataStoreConfiguration datastoreConfiguration) {
-        Map<String, Serializable> params = datastoreConfiguration.getParams();
+    private String getTypeNames() {
         List<Name> coverages = ancillaryFileManager.getCoveragesNames();
         StringBuilder builder = new StringBuilder();
         for (Name coverage : coverages) {
@@ -548,7 +541,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         }
         String typeNames = builder.toString();
         typeNames = typeNames.substring(0, typeNames.length() - 1);
-        params.put("TypeName", typeNames);
+        return typeNames;
+
     }
 
     /** Wraps a generic exception into a {@link IIOException}. */
@@ -983,12 +977,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         }
     }
 
-    public SimpleFeatureType getIndexSchema(Name coverageName, CoordinateSystem cs) throws Exception {
-        return getIndexSchema(coverageName, cs, false);
-    }
-
-    public SimpleFeatureType getIndexSchema(Name coverageName, CoordinateSystem coordinateSystem, boolean isShared)
-            throws Exception {
+    public SimpleFeatureType getIndexSchema(Name coverageName, CoordinateSystem coordinateSystem) throws Exception {
         // get the name for this variable to check his coveragename
         final String _coverageName = coverageName.toString();
         // get the coverage definition for this variable, at this stage this exists otherwise we
@@ -1002,7 +991,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
         // no schema was defined yet, let's create a default one
         if (schema == null || schema.getAttributes() == null) {
             // TODO incapsulate in coveragedescriptor
-            schemaDef = suggestSchemaFromCoordinateSystem(coverage, coordinateSystem, isShared);
+            schemaDef = suggestSchemaFromCoordinateSystem(coverage, coordinateSystem);
 
             // set the schema name to be the coverageName
             ancillaryFileManager.setSchema(coverage, coverage.getName(), schemaDef);
@@ -1022,11 +1011,11 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     }
 
     /** */
-    String suggestSchemaFromCoordinateSystem(Coverage coverage, CoordinateSystem cs, boolean isShared)
+    String suggestSchemaFromCoordinateSystem(Coverage coverage, CoordinateSystem cs)
             throws SchemaException {
 
         // init with base
-        String schemaAttributes = isShared ? BASE_SCHEMA_LOCATION : BASE_SCHEMA;
+        String schemaAttributes = BASE_SCHEMA;
 
         // check other dimensions
         String timeAttribute = "";

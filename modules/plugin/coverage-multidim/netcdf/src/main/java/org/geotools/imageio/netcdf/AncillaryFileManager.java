@@ -237,18 +237,10 @@ public class AncillaryFileManager implements FileSetManager {
     /** File storing the slices index (index, Tsection, Zsection) */
     private File slicesIndexFile;
 
-    /** File storing the datastore properties */
-    private File datastoreIndexFile;
-
     /** File storing the coverages indexer */
     private File indexerFile;
 
     public AncillaryFileManager(final File netcdfFile, final String indexFilePath)
-            throws IOException, JAXBException, NoSuchAlgorithmException {
-        this(netcdfFile, indexFilePath, null);
-    }
-
-    public AncillaryFileManager(final File netcdfFile, final String indexFilePath, final String datastoreFilePath)
             throws IOException, JAXBException, NoSuchAlgorithmException {
 
         org.geotools.util.Utilities.ensureNonNull("file", netcdfFile);
@@ -297,7 +289,6 @@ public class AncillaryFileManager implements FileSetManager {
 
         // init
         initIndexer();
-        datastoreIndexFile = lookupFile(datastoreFilePath, baseName, AuxiliaryFileType.INDEXER_DATASTORE);
     }
 
     /**
@@ -447,10 +438,6 @@ public class AncillaryFileManager implements FileSetManager {
 
     public File getDestinationDir() {
         return destinationDir;
-    }
-
-    public File getDatastoreIndexFile() {
-        return datastoreIndexFile;
     }
 
     public void addSlice(final Slice2DIndex variableIndex) {
@@ -757,72 +744,6 @@ public class AncillaryFileManager implements FileSetManager {
         return buf.toString();
     }
 
-    /**
-     * Create the {@link DataStoreConfiguration} using the external datastoreIndexFile if provided, or the H2 based
-     * default.
-     */
-    public DataStoreConfiguration getDatastoreConfiguration() throws IOException {
-        DataStoreConfiguration datastoreConfiguration = null;
-        if (datastoreIndexFile != null) {
-            String datastoreFilePath = datastoreIndexFile.getAbsolutePath();
-            datastoreConfiguration = DATASTORE_CONFIG_CACHE.get(datastoreFilePath);
-            if (datastoreConfiguration != null) {
-                return datastoreConfiguration;
-            }
-            URL datastoreURL = URLs.fileToUrl(datastoreIndexFile);
-            Properties properties = CoverageUtilities.loadPropertiesFromURL(datastoreURL);
-            if (properties != null) {
-                String storeName = properties.getProperty(NetCDFUtilities.STORE_NAME);
-                if (storeName != null) {
-                    datastoreConfiguration = new DataStoreConfiguration(storeName);
-                } else {
-                    final String SPIClass = properties.getProperty("SPI");
-                    try {
-                        // create a datastore as instructed
-                        final DataStoreFactorySpi spi = Class.forName(SPIClass)
-                                .asSubclass(DataStoreFactorySpi.class)
-                                .getDeclaredConstructor()
-                                .newInstance();
-                        Map<String, Serializable> datastoreParams = Utils.filterDataStoreParams(properties, spi);
-
-                        // create a datastore configuration using the specified SPI and
-                        // datastoreParams
-                        datastoreConfiguration = new DataStoreConfiguration(spi, datastoreParams);
-                        datastoreConfiguration.setDatastoreSpi(spi);
-                        datastoreConfiguration.setParams(datastoreParams);
-                        datastoreConfiguration.setShared(true);
-                        // update params for the shared case
-                        checkStoreWrapping(datastoreConfiguration);
-
-                    } catch (Exception e) {
-                        final IOException ioe = new IOException();
-                        throw (IOException) ioe.initCause(e);
-                    }
-                }
-                DATASTORE_CONFIG_CACHE.put(datastoreFilePath, datastoreConfiguration);
-            }
-        } else {
-            File parentFile = slicesIndexFile.getParentFile();
-            String database = FilenameUtils.removeExtension(FilenameUtils.getName(slicesIndexFile.getCanonicalPath()))
-                    .replace(".", "");
-            datastoreConfiguration =
-                    new DataStoreConfiguration(DataStoreConfiguration.getDefaultParams(database, parentFile));
-        }
-        return datastoreConfiguration;
-    }
-
-    /** Check whether the dataStore needs to be wrapped (as an instance, to allow long typeNames and attributes). */
-    private void checkStoreWrapping(DataStoreConfiguration datastoreConfiguration) throws IOException {
-        Map<String, Serializable> params = datastoreConfiguration.getParams();
-        String param = getParameter(Utils.Prop.WRAP_STORE);
-        if (param != null && param.trim().equalsIgnoreCase("true")) {
-            params.put(Utils.Prop.WRAP_STORE, true);
-            params.put(
-                    Utils.Prop.PARENT_LOCATION,
-                    URLs.fileToUrl(getDestinationDir()).toString());
-        }
-    }
-
     public String getParameter(String parameterKey) {
         ParametersType indexerParams = indexer != null ? indexer.getParameters() : null;
         return IndexerUtils.getParam(indexerParams, parameterKey);
@@ -831,7 +752,7 @@ public class AncillaryFileManager implements FileSetManager {
     public boolean getParameterAsBoolean(String parameterKey) {
         ParametersType indexerParams = indexer != null ? indexer.getParameters() : null;
         String param = IndexerUtils.getParam(indexerParams, parameterKey);
-        return Boolean.valueOf(param);
+        return Boolean.parseBoolean(param);
     }
 
     /**
