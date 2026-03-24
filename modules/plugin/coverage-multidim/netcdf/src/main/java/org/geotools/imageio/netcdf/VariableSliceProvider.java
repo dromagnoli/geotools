@@ -338,6 +338,12 @@ public class VariableSliceProvider implements SliceProvider {
                 return allIndices(axis);
             }
             if (filter instanceof CompositeDimensionFilter composite) {
+                // optimize the filters like x <= A and x >= A
+                Date exact = extractExactTime(composite);
+                if (exact != null) {
+                    int idx = axis.exact(exact);
+                    return idx >= 0 ? new int[] {idx} : new int[0];
+                }
                 return intersect(
                         resolveTimeFilterInternal(composite.getLeft(), axis),
                         resolveTimeFilterInternal(composite.getRight(), axis));
@@ -378,7 +384,15 @@ public class VariableSliceProvider implements SliceProvider {
             if (filter == DimensionFilter.ALL) {
                 return allIndices(axis);
             }
+
             if (filter instanceof CompositeDimensionFilter composite) {
+                // optimize the filters like x <= A and x >= A
+                Double exact = extractExactNumeric(composite);
+                if (exact != null) {
+                    int idx = axis.exact(exact);
+                    return idx >= 0 ? new int[] {idx} : new int[0];
+                }
+
                 return intersect(
                         resolveNumericFilterInternal(composite.getLeft(), axis),
                         resolveNumericFilterInternal(composite.getRight(), axis));
@@ -429,6 +443,82 @@ public class VariableSliceProvider implements SliceProvider {
                 return null;
             }
             return bundle.getAdditional().get(additionalIndex);
+        }
+
+        private static Date extractExactTime(CompositeDimensionFilter composite) {
+            RangeFilter left = asRange(composite.getLeft());
+            RangeFilter right = asRange(composite.getRight());
+            if (left == null || right == null) {
+                return null;
+            }
+
+            Date exact = extractExactTime(left, right);
+            if (exact != null) {
+                return exact;
+            }
+            return extractExactTime(right, left);
+        }
+
+        private static Date extractExactTime(RangeFilter upperBoundFilter, RangeFilter lowerBoundFilter) {
+            if (upperBoundFilter.getLower() != null || lowerBoundFilter.getUpper() != null) {
+                return null;
+            }
+
+            Date upper = toDate(upperBoundFilter.getUpper());
+            Date lower = toDate(lowerBoundFilter.getLower());
+            if (upper == null || lower == null) {
+                return null;
+            }
+
+            if (upper.getTime() != lower.getTime()) {
+                return null;
+            }
+
+            if (!upperBoundFilter.isUpperInclusive() || !lowerBoundFilter.isLowerInclusive()) {
+                return null;
+            }
+
+            return upper;
+        }
+
+        private static Double extractExactNumeric(CompositeDimensionFilter composite) {
+            RangeFilter left = asRange(composite.getLeft());
+            RangeFilter right = asRange(composite.getRight());
+            if (left == null || right == null) {
+                return null;
+            }
+
+            Double exact = extractExactNumeric(left, right);
+            if (exact != null) {
+                return exact;
+            }
+            return extractExactNumeric(right, left);
+        }
+
+        private static Double extractExactNumeric(RangeFilter upperBoundFilter, RangeFilter lowerBoundFilter) {
+            if (upperBoundFilter.getLower() != null || lowerBoundFilter.getUpper() != null) {
+                return null;
+            }
+
+            Double upper = toDouble(upperBoundFilter.getUpper());
+            Double lower = toDouble(lowerBoundFilter.getLower());
+            if (upper == null || lower == null) {
+                return null;
+            }
+
+            if (Double.compare(upper, lower) != 0) {
+                return null;
+            }
+
+            if (!upperBoundFilter.isUpperInclusive() || !lowerBoundFilter.isLowerInclusive()) {
+                return null;
+            }
+
+            return upper;
+        }
+
+        private static RangeFilter asRange(DimensionFilter filter) {
+            return filter instanceof RangeFilter range ? range : null;
         }
 
         private static int[] intersect(int[] left, int[] right) {
