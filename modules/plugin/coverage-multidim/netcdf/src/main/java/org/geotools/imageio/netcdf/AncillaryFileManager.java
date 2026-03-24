@@ -22,8 +22,6 @@ import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
 import java.io.File;
 import java.io.IOException;
-import java.io.Serializable;
-import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -34,20 +32,15 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.FilenameUtils;
-import org.geotools.api.data.DataStoreFactorySpi;
 import org.geotools.api.feature.type.Name;
 import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.grid.io.FileSystemFileSetManager;
-import org.geotools.coverage.io.catalog.DataStoreConfiguration;
-import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.feature.NameImpl;
-import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Collectors;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Collectors.Collector;
@@ -66,7 +59,6 @@ import org.geotools.imageio.netcdf.Slice2DIndex.Slice2DIndexManager;
 import org.geotools.imageio.netcdf.utilities.BaseDirectoryStrategy;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.util.SoftValueHashMap;
-import org.geotools.util.URLs;
 import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
 
@@ -121,44 +113,6 @@ public class AncillaryFileManager implements FileSetManager {
                 }
                 return file;
             }
-        },
-
-        INDEXER_DATASTORE {
-            @Override
-            File lookup(String baseName, File parentDirectory, File destinationDirectory) {
-
-                // CASE 1: side file (for backward compatibility)
-                // Compose the path to an optional datastore file in the same directory of the input
-                // file
-                String optionalAuxiliaryDatastorePath =
-                        parentDirectory.getAbsolutePath() + File.separator + DEFAULT_DATASTORE_PROPERTIES;
-                File file = new File(optionalAuxiliaryDatastorePath);
-                if (!file.exists() || !file.canRead()) {
-                    // CASE 2: side file in hidden folder (for backward compatibility)
-                    // Compose the path to an optional datastore file inside a directory with the
-                    // same
-                    // name of the file but with a dot before (.filename/mddatastore.properties)
-                    optionalAuxiliaryDatastorePath = parentDirectory.getAbsolutePath()
-                            + File.separator
-                            + "."
-                            + baseName
-                            + File.separator
-                            + DEFAULT_DATASTORE_PROPERTIES;
-                    file = new File(optionalAuxiliaryDatastorePath);
-                    if (!file.exists() || !file.canRead()) {
-                        file = null;
-                    }
-                }
-                if (file == null) {
-                    // CASE 3: the recent approach using HASH of the file to prevent conflicts
-                    // With files with same name
-                    file = new File(destinationDirectory, DEFAULT_DATASTORE_PROPERTIES);
-                    if (!file.exists() || !file.canRead()) {
-                        file = null;
-                    }
-                }
-                return file;
-            }
         };
 
         abstract File lookup(String baseName, File parentDirectory, File destinationDirectory);
@@ -183,12 +137,10 @@ public class AncillaryFileManager implements FileSetManager {
     // dimension name
     private final Map<String, MultipleBandsDimensionInfo> multipleBandsDimensionsInfo = new HashMap<>();
 
-    // Indexer and datastore config can be considered static so we can cache them
+    // Indexer can be considered static so we can cache them
     // in order to avoid their repeated unmarshalling when accessing a dataset.
 
     protected static final Map<String, Indexer> INDEXER_CACHE = new SoftValueHashMap<>();
-
-    protected static final Map<String, DataStoreConfiguration> DATASTORE_CONFIG_CACHE = new SoftValueHashMap<>();
 
     static {
         try {
@@ -205,8 +157,6 @@ public class AncillaryFileManager implements FileSetManager {
     private static final String INDEX_SUFFIX = ".xml";
 
     private static final String COVERAGE_NAME = "coverageName";
-
-    private static final String DEFAULT_DATASTORE_PROPERTIES = "mddatastore.properties";
 
     /** The list of Slice2D indexes */
     private final List<Slice2DIndex> slicesIndexList = new ArrayList<>();
@@ -787,7 +737,6 @@ public class AncillaryFileManager implements FileSetManager {
 
     /** Clear the parsed configs (datastore and indexer) cache */
     public static void clearCache() {
-        DATASTORE_CONFIG_CACHE.clear();
         INDEXER_CACHE.clear();
     }
 }

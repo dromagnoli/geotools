@@ -18,13 +18,10 @@ package org.geotools.coverage.io.catalog;
 
 import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
 import org.geotools.api.data.Query;
 import org.geotools.api.feature.simple.SimpleFeature;
 import org.geotools.api.feature.simple.SimpleFeatureType;
-import org.geotools.api.filter.Filter;
 import org.geotools.coverage.grid.io.GranuleSource;
-import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureCollection;
 import org.geotools.data.simple.SimpleFeatureIterator;
 import org.geotools.feature.collection.AbstractFeatureCollection;
@@ -83,10 +80,11 @@ public class CoverageSlicesCatalogSource implements GranuleSource {
     }
 
     /**
-     * Lazy collection that streams slices from {@link CoverageSlicesCatalog#iterateGranules(Query)} and
-     * exposes their originator {@link SimpleFeature}s.
+     * Lazy collection that streams slices from {@link CoverageSlicesCatalog#iterateGranules(Query)} and exposes their
+     * originator {@link SimpleFeature}s.
      */
-    private static final class LazyCoverageSliceFeatureCollection extends AbstractFeatureCollection implements SimpleFeatureCollection{
+    private static final class LazyCoverageSliceFeatureCollection extends AbstractFeatureCollection
+            implements SimpleFeatureCollection {
 
         private final CoverageSlicesCatalog catalog;
         private final Query query;
@@ -97,46 +95,44 @@ public class CoverageSlicesCatalogSource implements GranuleSource {
             this.query = query;
         }
 
-        /**
-         * Used internally by AbstractFeatureCollection.size() and iteration logic.
-         * Must return a plain Iterator<SimpleFeature>.
-         */
+        private static final class SliceFeatureIterator implements Iterator<SimpleFeature> {
+            private final CoverageSlicesCatalog.SliceIterator delegate;
+
+            SliceFeatureIterator(CoverageSlicesCatalog.SliceIterator delegate) {
+                this.delegate = delegate;
+            }
+
+            @Override
+            public boolean hasNext() {
+                return delegate.hasNext();
+            }
+
+            @Override
+            public SimpleFeature next() {
+                return delegate.next().getOriginator();
+            }
+
+            void close() {
+                delegate.close();
+            }
+        }
+
         @Override
         protected Iterator<SimpleFeature> openIterator() {
             try {
-                final CoverageSlicesCatalog.SliceIterator sliceIt =
-                        catalog.iterateGranules(query);
-
-                return new Iterator<>() {
-
-                    @Override
-                    public boolean hasNext() {
-                        boolean has = sliceIt.hasNext();
-                        if (!has) {
-                            sliceIt.close();
-                        }
-                        return has;
-                    }
-
-                    @Override
-                    public SimpleFeature next() {
-                        return sliceIt.next().getOriginator();
-                    }
-                };
-
+                return new SliceFeatureIterator(catalog.iterateGranules(query));
             } catch (IOException e) {
                 throw new RuntimeException(e);
             }
         }
 
-        /**
-         * Proper GeoTools streaming iterator.
-         */
+        /** Proper GeoTools streaming iterator. */
         @Override
+        @SuppressWarnings("PMD.CloseResource")
         public SimpleFeatureIterator features() {
             try {
-                final CoverageSlicesCatalog.SliceIterator sliceIt =
-                        catalog.iterateGranules(query);
+                // The sliceIt will be closed when closing the features.
+                final CoverageSlicesCatalog.SliceIterator sliceIt = catalog.iterateGranules(query);
 
                 return new SimpleFeatureIterator() {
 
@@ -161,9 +157,7 @@ public class CoverageSlicesCatalogSource implements GranuleSource {
             }
         }
 
-        /**
-         * Efficient count without iterating features.
-         */
+        /** Efficient count without iterating features. */
         @Override
         public int size() {
             try {
@@ -173,9 +167,7 @@ public class CoverageSlicesCatalogSource implements GranuleSource {
             }
         }
 
-        /**
-         * Efficient bounds without iterating features.
-         */
+        /** Efficient bounds without iterating features. */
         @Override
         public ReferencedEnvelope getBounds() {
             try {

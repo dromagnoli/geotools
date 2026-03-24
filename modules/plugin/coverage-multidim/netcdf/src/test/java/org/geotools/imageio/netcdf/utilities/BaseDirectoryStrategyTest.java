@@ -148,7 +148,6 @@ public class BaseDirectoryStrategyTest {
                 Arrays.stream(sidecarDir.listFiles()).map(f -> f.getName()).collect(Collectors.toSet());
         assertTrue(sidecarFiles.contains("origin.txt"));
         assertTrue(sidecarFiles.contains(ncFileName + ".idx"));
-        assertTrue(sidecarFiles.contains(ncFileName + ".data.db"));
     }
 
     private static void setupAndopenTestNetcdf(File flatRootDir) throws IOException {

@@ -969,10 +969,7 @@ public class RasterManager implements Cloneable {
                 hints.add(new RenderingHints(Utils.AUXILIARY_FILES_PATH, auxiliaryFilePath));
                 update = true;
             }
-            if (auxiliaryDatastorePath != null) {
-                hints.add(new RenderingHints(Utils.AUXILIARY_DATASTORE_PATH, auxiliaryDatastorePath));
-                update = true;
-            }
+
             if (update && !hints.containsKey(Utils.PARENT_DIR)) {
                 String parentDir = null;
                 if (parentReader.parentDirectory != null) {

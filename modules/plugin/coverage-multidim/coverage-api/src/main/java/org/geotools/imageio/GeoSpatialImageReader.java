@@ -27,14 +27,11 @@ import javax.imageio.ImageReader;
 import javax.imageio.metadata.IIOMetadata;
 import javax.imageio.spi.ImageReaderSpi;
 import org.geotools.api.data.Query;
-import org.geotools.api.data.Repository;
 import org.geotools.api.feature.type.Name;
 import org.geotools.coverage.grid.io.FileSetManager;
 import org.geotools.coverage.io.CoverageSourceDescriptor;
 import org.geotools.coverage.io.catalog.CoverageSlice;
 import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
-import org.geotools.coverage.io.catalog.CoverageSlicesCatalog.WrappedCoverageSlicesCatalog;
-import org.geotools.coverage.io.catalog.DataStoreConfiguration;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.util.SuppressFBWarnings;
 import org.geotools.util.factory.Hints;
@@ -152,9 +149,9 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
         return slicesCatalog;
     }
 
-    /** Initialize a slicesCatalog on top of the provided {@link DataStoreConfiguration} instance */
-    protected void initCatalog(String typeNames) throws IOException {
-        slicesCatalog = new CoverageSlicesCatalog(typeNames);
+    /** Create a slicesCatalog */
+    protected void initCatalog() throws IOException {
+        slicesCatalog = new CoverageSlicesCatalog();
     }
 
     @Override
@@ -167,10 +164,10 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
     @Override
     public boolean init(RenderingHints hints) {
         if (hints != null && hints.containsKey(Utils.AUXILIARY_FILES_PATH)) {
-                String path = getPath(hints, Utils.AUXILIARY_FILES_PATH);
-                if (path != null) {
-                    setAuxiliaryFilesPath(path);
-                }
+            String path = getPath(hints, Utils.AUXILIARY_FILES_PATH);
+            if (path != null) {
+                setAuxiliaryFilesPath(path);
+            }
             return true;
         }
         return false;
