@@ -78,7 +78,6 @@ import org.geotools.coverage.io.util.DoubleRangeTreeSet;
 import org.geotools.coverage.io.util.NumberRangeComparator;
 import org.geotools.coverage.util.CoverageUtilities;
 import org.geotools.data.DataUtilities;
-import org.geotools.data.collection.ListFeatureCollection;
 import org.geotools.feature.NameImpl;
 import org.geotools.gce.imagemosaic.Utils;
 import org.geotools.gce.imagemosaic.catalog.index.Indexer.Coverages.Coverage;
@@ -513,9 +512,7 @@ public class VariableAdapter extends CoverageSourceDescriptor {
                     String schName = schema.getName();
                     final CoverageSlicesCatalog catalog = reader.getCatalog();
                     if (catalog != null) {
-                        // Current assumption is that we have a typeName for each coverage but we
-                        // should keep on working
-                        // with shared schemas
+                        // Current assumption is that we have a typeName for each coverage
                         // try with coveragename
                         SimpleFeatureType schemaType = null;
                         try {
@@ -1178,58 +1175,6 @@ public class VariableAdapter extends CoverageSourceDescriptor {
     /** @return the shape */
     public int[] getShape() {
         return variableDS.getShape();
-    }
-
-    protected void addSLices() {
-        final int slicesNum = getNumberOfSlices();
-
-        final String varName = variableDS.getFullName();
-        for (int imageIndex = 0; imageIndex < slicesNum; imageIndex++) {
-
-            int[] index = splitIndex(imageIndex);
-
-            // Put a new sliceIndex in the list
-            final Slice2DIndex variableIndex = new Slice2DIndex(index, varName);
-            reader.ancillaryFileManager.addSlice(variableIndex);
-        }
-    }
-
-    /**
-     * Return features for that variable adapter, starting from slices with index = "startIndex", and up to "limit"
-     * elements. This allows for paging. Put the created features inside the provided collection
-     *
-     * @param startIndex the first slice to be returned
-     * @param limit the max number of features to be created
-     * @param collection the feature collection where features need to be stored
-     */
-    public int getFeatures(final int startIndex, final int limit, final ListFeatureCollection collection) {
-        final SimpleFeatureType indexSchema = collection.getSchema();
-        final int slicesNum = getNumberOfSlices();
-        if (startIndex > slicesNum) {
-            throw new IllegalArgumentException(
-                    "The paging start index can't be higher than the number of available slices");
-        }
-        int lastIndex = startIndex + limit;
-        if (lastIndex > slicesNum) {
-            lastIndex = slicesNum;
-        }
-        final String varName = variableDS.getFullName();
-        for (int imageIndex = startIndex; imageIndex < lastIndex; imageIndex++) {
-
-            int[] index = splitIndex(imageIndex);
-
-            // Put a new sliceIndex in the list
-            final Slice2DIndex variableIndex = new Slice2DIndex(index, varName);
-            reader.ancillaryFileManager.addSlice(variableIndex);
-
-            // Create a feature for that index to be put in the CoverageSlicesCatalog
-            final SimpleFeature feature = createFeature(index, coordinateSystem, imageIndex, indexSchema);
-            if (feature != null) {
-                collection.add(feature);
-            } // or else it is a non-existing slice (not in catalog, but counted)
-        }
-        // return processed slices
-        return lastIndex - startIndex;
     }
 
     /**

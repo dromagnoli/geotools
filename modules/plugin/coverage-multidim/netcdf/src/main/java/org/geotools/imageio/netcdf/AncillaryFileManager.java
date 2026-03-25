@@ -55,7 +55,6 @@ import org.geotools.gce.imagemosaic.properties.DefaultPropertiesCollectorSPI;
 import org.geotools.gce.imagemosaic.properties.PropertiesCollector;
 import org.geotools.gce.imagemosaic.properties.PropertiesCollectorFinder;
 import org.geotools.gce.imagemosaic.properties.PropertiesCollectorSPI;
-import org.geotools.imageio.netcdf.Slice2DIndex.Slice2DIndexManager;
 import org.geotools.imageio.netcdf.utilities.BaseDirectoryStrategy;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.util.SoftValueHashMap;
@@ -63,10 +62,7 @@ import org.geotools.util.Utilities;
 import org.geotools.util.logging.Logging;
 
 /**
- * A class used to store any auxiliary indexing information such as the low level indexer definition as well as the
- * datastore properties configuration specifying where to build that index.
- *
- * <p>Since 14.x is it also possible to store the catalog into a PostGis based DB
+ * A class used to store any auxiliary indexing information.
  *
  * @author Daniele Romagnoli, GeoSolutions SAS
  */
@@ -74,8 +70,7 @@ public class AncillaryFileManager implements FileSetManager {
 
     /**
      * The Ancillary file manager will parse different type of auxiliary files: an XML based indexer specifying the
-     * definition of the low level index describing the multidim granules catalog, as well as datastore properties file
-     * containing the configuration of the PostGIS DB where the catalog should be stored.
+     * definition of the low level index describing the multidim granules catalog.
      */
     enum AuxiliaryFileType {
         INDEXER_XML {
@@ -158,12 +153,6 @@ public class AncillaryFileManager implements FileSetManager {
 
     private static final String COVERAGE_NAME = "coverageName";
 
-    /** The list of Slice2D indexes */
-    private final List<Slice2DIndex> slicesIndexList = new ArrayList<>();
-
-    /** The Slice2D index manager */
-    Slice2DIndexManager slicesIndexManager;
-
     /** The map of coverages elements */
     Map<String, Coverage> coveragesMapping = new HashMap<>();
 
@@ -183,9 +172,6 @@ public class AncillaryFileManager implements FileSetManager {
 
     /** The parent folder of the main File */
     private File parentDirectory;
-
-    /** File storing the slices index (index, Tsection, Zsection) */
-    private File slicesIndexFile;
 
     /** File storing the coverages indexer */
     private File indexerFile;
@@ -219,22 +205,14 @@ public class AncillaryFileManager implements FileSetManager {
         String outputLocalFolder = "." + baseName + "_" + hashCode;
         destinationDir = new File(baseDir, outputLocalFolder);
 
-        boolean createdDir = false;
         if (!destinationDir.exists()) {
-            createdDir = destinationDir.mkdirs();
+            destinationDir.mkdirs();
             // Creation of an origin.txt file with the absolute file path internally written
             File origin = new File(destinationDir, "origin.txt");
             FileUtils.write(origin, ncFile.getAbsolutePath(), "UTF-8");
         }
 
-        // Init auxiliary file names
-        slicesIndexFile = new File(destinationDir, baseName + ".idx");
         indexerFile = lookupFile(indexFilePath, baseName, AuxiliaryFileType.INDEXER_XML);
-
-        if (!createdDir) {
-            // Check for index to be reset only in case we didn't created a new directory.
-            checkReset(ncFile, slicesIndexFile, destinationDir);
-        }
         fileSetManager.addFile(destinationDir.getAbsolutePath());
 
         // init
@@ -266,38 +244,12 @@ public class AncillaryFileManager implements FileSetManager {
         return CUT_EXTENSIONS.contains(extension);
     }
 
-    /** Check whether the file have been updated. */
-    private static void checkReset(final File mainFile, final File slicesIndexFile, final File destinationDir)
-            throws IOException {
-        // TODO: Consider acquiring a LOCK on the file
-        if (slicesIndexFile.exists()) {
-            final long mainFileTime = mainFile.lastModified();
-            final long indexTime = slicesIndexFile.lastModified();
-
-            // Check whether the NetCDF time is more recent with respect to the auxiliary indexes
-            if (mainFileTime > indexTime) {
-                // Need to delete all the auxiliary files and start from scratch
-                final Collection<File> listedFiles = FileUtils.listFiles(destinationDir, null, true);
-                for (File file : listedFiles) {
-
-                    // Preserve summary file which contains mapping between coverages and underlying
-                    // variables
-                    if (!file.getAbsolutePath().endsWith(INDEX_SUFFIX)) {
-                        FileUtils.deleteQuietly(file);
-                    }
-                }
-            }
-        }
-    }
-
     /**
      * Write indexer to disk
      *
      * <p>TODO: Need to check for thread safety
      */
     public void writeToDisk() throws IOException, JAXBException {
-        // Write collected information
-        Slice2DIndexManager.writeIndexFile(slicesIndexFile, slicesIndexList);
         if (!indexerFile.exists()) {
             storeIndexer(indexerFile, coveragesMapping);
         }
@@ -351,47 +303,10 @@ public class AncillaryFileManager implements FileSetManager {
     }
 
     /** Dispose the Manager */
-    public void dispose() {
-        try {
-            slicesIndexList.clear();
-
-            if (slicesIndexManager != null) {
-                slicesIndexManager.dispose();
-            }
-        } catch (IOException e) {
-            if (LOGGER.isLoggable(Level.WARNING)) {
-                LOGGER.warning("Errors Disposing the indexer." + e.getLocalizedMessage());
-            }
-        } finally {
-            slicesIndexManager = null;
-        }
-    }
-
-    /** Return a {@link Slice2DIndex} related to the provided imageIndex */
-    public Slice2DIndex getSlice2DIndex(final int imageIndex) throws IOException {
-        Slice2DIndex variableIndex;
-        if (slicesIndexManager != null) {
-            variableIndex = slicesIndexManager.getSlice2DIndex(imageIndex);
-        } else {
-            variableIndex = slicesIndexList.get(imageIndex);
-        }
-        return variableIndex;
-    }
-
-    public File getSlicesIndexFile() {
-        return slicesIndexFile;
-    }
-
-    public File getIndexerFile() {
-        return indexerFile;
-    }
+    public void dispose() {}
 
     public File getDestinationDir() {
         return destinationDir;
-    }
-
-    public void addSlice(final Slice2DIndex variableIndex) {
-        slicesIndexList.add(variableIndex);
     }
 
     public Coverage addCoverage(String varName) {
@@ -411,19 +326,6 @@ public class AncillaryFileManager implements FileSetManager {
         coveragesMapping.put(coverage.getName(), coverage);
         variablesMap.put(new NameImpl(coverage.getName()), coverage.getOrigName());
         return coverage;
-    }
-
-    public void initSliceManager() throws IOException {
-        slicesIndexManager = new Slice2DIndexManager(slicesIndexFile);
-        slicesIndexManager.open();
-    }
-
-    public void resetSliceManager() throws IOException {
-        if (slicesIndexManager != null) {
-            slicesIndexManager.dispose();
-        }
-        // clean existing index
-        slicesIndexList.clear();
     }
 
     /** Get the list of Names for the underlying coverage list */
@@ -673,11 +575,6 @@ public class AncillaryFileManager implements FileSetManager {
 
     @Override
     public void purge() {
-        try {
-            resetSliceManager();
-        } catch (IOException e) {
-            LOGGER.log(Level.FINER, e.getMessage(), e);
-        }
         fileSetManager.purge();
     }
 

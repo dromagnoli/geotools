@@ -46,7 +46,7 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
     protected File file;
 
     /** the coverage slices slicesCatalog */
-    CoverageSlicesCatalog slicesCatalog;
+    protected CoverageSlicesCatalog slicesCatalog;
 
     protected int numImages = -1;
 
@@ -147,11 +147,6 @@ public abstract class GeoSpatialImageReader extends ImageReader implements FileS
     /** Returns the underlying slicesCatalog. */
     public CoverageSlicesCatalog getCatalog() {
         return slicesCatalog;
-    }
-
-    /** Create a slicesCatalog */
-    protected void initCatalog() throws IOException {
-        slicesCatalog = new CoverageSlicesCatalog();
     }
 
     @Override

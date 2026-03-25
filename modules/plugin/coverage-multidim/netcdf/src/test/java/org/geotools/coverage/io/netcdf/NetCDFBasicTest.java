@@ -47,7 +47,6 @@ import org.geotools.feature.NameImpl;
 import org.geotools.imageio.netcdf.AncillaryFileManager;
 import org.geotools.imageio.netcdf.NetCDFImageReader;
 import org.geotools.imageio.netcdf.NetCDFImageReaderSpi;
-import org.geotools.imageio.netcdf.Slice2DIndex;
 import org.geotools.imageio.netcdf.utilities.NetCDFUtilities;
 import org.geotools.test.TestData;
 import org.junit.After;
@@ -87,11 +86,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
             reader.setInput(file);
             int numImages = reader.getNumImages(true);
             assertEquals(1008, numImages);
-            for (int i = 0; i < numImages; i++) {
-                Slice2DIndex sliceIndex = reader.getSlice2DIndex(i);
-                assertNotNull(sliceIndex);
-                spitOutSliceInformation(i, sliceIndex);
-            }
 
             // check coverage names
             final List<Name> names = reader.getCoveragesNames();
@@ -148,11 +142,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
             reader.setInput(file);
             int numImages = reader.getNumImages(true);
             LOGGER.info("Found " + numImages + " images.");
-            for (int i = 0; i < numImages; i++) {
-                Slice2DIndex sliceIndex = reader.getSlice2DIndex(i);
-                assertNotNull(sliceIndex);
-                spitOutSliceInformation(i, sliceIndex);
-            }
 
             // checking slice catalog
             final CoverageSlicesCatalog cs = reader.getCatalog();
@@ -300,12 +289,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
         try {
             reader = (NetCDFImageReader) unidataImageReaderSpi.createReaderInstance();
             reader.setInput(file);
-            int numImages = reader.getNumImages(true);
-            for (int i = 0; i < numImages; i++) {
-                Slice2DIndex sliceIndex = reader.getSlice2DIndex(i);
-                assertNotNull(sliceIndex);
-                spitOutSliceInformation(i, sliceIndex);
-            }
 
             // cloud_phase
             CoverageSourceDescriptor cd = reader.getCoverageDescriptor(new NameImpl("cloud_phase"));
@@ -340,11 +323,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
             int numImages = reader.getNumImages(true);
             assertEquals(1, numImages);
             LOGGER.info("Found " + numImages + " images.");
-            for (int i = 0; i < numImages; i++) {
-                Slice2DIndex sliceIndex = reader.getSlice2DIndex(i);
-                assertNotNull(sliceIndex);
-                spitOutSliceInformation(i, sliceIndex);
-            }
 
             // check coverage names
             final List<Name> names = reader.getCoveragesNames();
@@ -405,11 +383,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
             int numImages = reader.getNumImages(true);
             assertEquals(1, numImages);
             LOGGER.info("Found " + numImages + " images.");
-            for (int i = 0; i < numImages; i++) {
-                Slice2DIndex sliceIndex = reader.getSlice2DIndex(i);
-                assertNotNull(sliceIndex);
-                spitOutSliceInformation(i, sliceIndex);
-            }
 
             // check coverage names
             final List<Name> names = reader.getCoveragesNames();
@@ -472,12 +445,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
         try {
             reader = (NetCDFImageReader) unidataImageReaderSpi.createReaderInstance();
             reader.setInput(file);
-            int numImages = reader.getNumImages(true);
-            for (int i = 0; i < numImages; i++) {
-                Slice2DIndex sliceIndex = reader.getSlice2DIndex(i);
-                assertNotNull(sliceIndex);
-                spitOutSliceInformation(i, sliceIndex);
-            }
 
             // check coverage names
             final List<Name> names = reader.getCoveragesNames();
@@ -526,23 +493,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
         }
     }
 
-    /** */
-    private void spitOutSliceInformation(int i, Slice2DIndex sliceIndex) {
-        if (TestData.isInteractiveTest()) {
-            String variableName = sliceIndex.getVariableName();
-            StringBuilder sb = new StringBuilder();
-            sb.append("\n").append("\n").append("\n");
-            sb.append("IMAGE: ").append(i).append("\n");
-            sb.append(" Variable Name = ").append(variableName);
-            sb.append(" ( Z = ");
-            sb.append(sliceIndex.getNIndex(0));
-            sb.append("; T = ");
-            sb.append(sliceIndex.getNIndex(1));
-            sb.append(")");
-            LOGGER.info(sb.toString());
-        }
-    }
-
     @Test
     public void testImageReaderPolyphemunsComplex2() throws Exception {
         File file = null;
@@ -566,11 +516,6 @@ public final class NetCDFBasicTest extends NetCDFBaseTest {
             reader.setInput(file);
             int numImages = reader.getNumImages(true);
             assertEquals(1008, numImages);
-            for (int i = 0; i < numImages; i++) {
-                Slice2DIndex sliceIndex = reader.getSlice2DIndex(i);
-                assertNotNull(sliceIndex);
-                spitOutSliceInformation(i, sliceIndex);
-            }
 
             // check dimensions
             CoverageSourceDescriptor cd = reader.getCoverageDescriptor(new NameImpl("NO2"));

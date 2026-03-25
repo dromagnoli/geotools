@@ -63,7 +63,6 @@ import org.geotools.coverage.io.catalog.CoverageSlicesCatalog;
 import org.geotools.coverage.io.range.FieldType;
 import org.geotools.coverage.io.range.RangeType;
 import org.geotools.coverage.util.CoverageUtilities;
-import org.geotools.data.DefaultTransaction;
 import org.geotools.feature.NameImpl;
 import org.geotools.feature.SchemaException;
 import org.geotools.gce.imagemosaic.RasterLayerRequest;
@@ -148,6 +147,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
     /** The underlying NetCDF georeferencing manager instance */
     NetCDFGeoreferenceManager georeferencing;
+
+    NetCDFImageIndexResolver imageIndexResolver;
 
     private CheckType checkType = CheckType.UNSET;
 
@@ -287,17 +288,14 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     }
 
     /** Index Initialization. store indexing information. */
-    @SuppressWarnings("PMD.UseTryWithResources") // transaction needed in catch
     protected int initIndex() throws InvalidRangeException, IOException {
-        DefaultTransaction transaction = new DefaultTransaction("indexTransaction" + System.nanoTime());
         int numImages = 0;
         try {
-
-            initCatalog();
-            final CoverageSlicesCatalog catalog = getCatalog();
+            slicesCatalog = new CoverageSlicesCatalog();
             final List<Variable> variables = dataset.getVariables();
             if (variables != null) {
 
+                List<VariableAdapter> supportedVariableAdapters = new ArrayList<>();
                 // cycle on all variables to get parse them
                 for (final Variable var_ : variables) {
                     if (var_ instanceof VariableDS variable) {
@@ -323,19 +321,18 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                                     "Unable to created index schema for coverage:" + coverageName);
                         }
                         // get variable adapter which maps to a coverage in the end
-                        final CoverageSlicesCatalog.CoverageContext context =
-                                new CoverageSlicesCatalog.CoverageContext(indexSchema);
-                        // Context are registered first, as soon as we have the schema
-                        catalog.registerContext(context);
+                        final CoverageSlicesCatalog.CoverageSlicesContext context =
+                                new CoverageSlicesCatalog.CoverageSlicesContext(indexSchema);
+                        // Context is registered first, as soon as we have the schema
+                        slicesCatalog.registerContext(context);
                         final VariableAdapter vaAdapter = getCoverageDescriptor(coverageName);
-
+                        supportedVariableAdapters.add(vaAdapter);
                         if (LOGGER.isLoggable(Level.FINEST)) {
                             LOGGER.finest("Collecting slices for: " + coverageName);
                         }
 
                         final int variableImageStartIndex = numImages;
                         final int numberOfSlices = vaAdapter.getNumberOfSlices();
-                        vaAdapter.addSLices();
                         numImages += numberOfSlices;
 
                         // context are then updated once we extracted all the details
@@ -347,35 +344,18 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                                 VariableAdapter.buildIndexContext(vaAdapter));
                     }
                 }
+                this.imageIndexResolver = new NetCDFImageIndexResolver(supportedVariableAdapters);
             }
             // write things to disk
             ancillaryFileManager.writeToDisk();
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.fine("Committing changes to the DB");
-            }
-            transaction.commit();
         } catch (Throwable e) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.fine("Rollback");
-            }
-            if (transaction != null) {
-                transaction.rollback();
-            }
             throw new IOException(e);
-        } finally {
-            try {
-                if (transaction != null) {
-                    transaction.close();
-                }
-            } catch (Throwable t) {
-
-            }
         }
         return numImages;
     }
 
     private void updateContext(
-            CoverageSlicesCatalog.CoverageContext context,
+            CoverageSlicesCatalog.CoverageSlicesContext context,
             VariableAdapter vaAdapter,
             SimpleFeatureType indexSchema,
             int globalImageStartIndex,
@@ -448,7 +428,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
     /** Initialize main properties for this reader. */
     private void init() throws IOException {
-        int numImages = 0;
+        int numImages;
         try {
             if (dataset != null) {
                 checkType = NetCDFUtilities.getCheckType(dataset);
@@ -456,36 +436,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
                 // get the coordinate variables
                 georeferencing = new NetCDFGeoreferenceManager(dataset);
                 uniqueTimeAttribute = ancillaryFileManager.getParameterAsBoolean(NetCDFUtilities.UNIQUE_TIME_ATTRIBUTE);
-
-                // if (slicesIndexFile != null) {
-                // === use sidecar index
-                //    if (slicesIndexFile.exists()) {
-                //        ancillaryFileManager.initSliceManager();
-                //        numImages = ancillaryFileManager.slicesIndexManager.getNumberOfRecords();
-                //        if (!ignoreMetadata) {
-                //            coverages.addAll(ancillaryFileManager.getCoveragesNames());
-                //            String typeNames = getTypeNames();
-                //            initCatalog();
-                //        }
-                //    }
-
-                //    if (numImages <= 0 || !slicesIndexFile.exists()) {
-                // === index doesn't exists already, build it first
-                // close existing
-
-                // TODO: Optimize this. Why it's storing the index and reading it back??
-                //        ancillaryFileManager.resetSliceManager();
-                initIndex();
-
-                // reopen file to cut caching
-                ancillaryFileManager.initSliceManager();
-                numImages = ancillaryFileManager.slicesIndexManager.getNumberOfRecords();
-
-                // } else {
-                // === the dataset is no file dataset, need to build memory index
-                //    numImages = initIndex();
-                // }
-
+                numImages = initIndex();
             } else {
                 throw new IllegalArgumentException("No valid NetCDF dataset has been found");
             }
@@ -497,32 +448,16 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
     /** Wraps a generic exception into a {@link IIOException}. */
     protected IIOException netcdfFailure(final Exception e) throws IOException {
-        return new IIOException(
-                new StringBuilder("Can't read file ")
-                        .append(dataset.getLocation())
-                        .toString(),
-                e);
-    }
-
-    /** Return the {@link Slice2DIndex} associated to the specified imageIndex */
-    public Slice2DIndex getSlice2DIndex(int imageIndex) throws IOException {
-        return ancillaryFileManager.getSlice2DIndex(imageIndex);
+        return new IIOException("Can't read file " + dataset.getLocation(), e);
     }
 
     /** Return the {@link VariableAdapter} related to that imageIndex */
     protected VariableAdapter getCoverageDescriptor(int imageIndex) {
         checkImageIndex(imageIndex);
-        try {
-            Slice2DIndex slice2DIndex = getSlice2DIndex(imageIndex);
-            if (slice2DIndex != null) {
-                return getCoverageDescriptor(new NameImpl(slice2DIndex.getVariableName()));
-            }
-        } catch (IOException e) {
-            if (LOGGER.isLoggable(Level.FINE)) {
-                LOGGER.log(Level.FINE, e.getLocalizedMessage(), e);
-            }
-        }
-        return null;
+
+        NetCDFImageIndexResolver.ResolvedSlice slice = imageIndexResolver.resolve(imageIndex);
+        String variableName = slice.getVariableName();
+        return getCoverageDescriptor(new NameImpl(variableName));
     }
 
     @Override
@@ -557,8 +492,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     public BufferedImage read(int imageIndex, ImageReadParam param) throws IOException {
         clearAbortRequest();
 
-        final Slice2DIndex slice2DIndex = getSlice2DIndex(imageIndex);
-        final String variableName = slice2DIndex.getVariableName();
+        NetCDFImageIndexResolver.ResolvedSlice slice = imageIndexResolver.resolve(imageIndex);
+        String variableName = slice.getVariableName();
         final VariableAdapter wrapper = getCoverageDescriptor(new NameImpl(variableName));
 
         // let's see if we have some extra parameters
@@ -626,16 +561,16 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
             int first, index;
 
             // Populate (additional), T, Z in COARDS order by default
-            for (int i = 0; i < slice2DIndex.getNCount(); i++) {
-                first = slice2DIndex.getNIndex(i);
+            for (int i = 0; i < slice.getNCount(); i++) {
+                first = slice.getNIndex(i);
                 if (first != -1) {
                     ranges.add(new Range(first, first, 1));
                 }
             }
             // use the nDimensionindex to reorder the T, Z, additional ranges as appropriate
             // nDimensionIndex(i) corresponds to the position of the ith dimension in ranges
-            for (int i = 0; i < slice2DIndex.getNCount(); i++) {
-                first = slice2DIndex.getNIndex(i);
+            for (int i = 0; i < slice.getNCount(); i++) {
+                first = slice.getNIndex(i);
                 index = wrapper.getNDimensionIndex(i);
                 if (first != -1 && index != -1) {
                     ranges.set(index, new Range(first, first, 1));
@@ -1029,8 +964,8 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
     public IIOMetadata getImageMetadata(int imageIndex) throws IOException {
         checkImageIndex(imageIndex);
 
-        final Slice2DIndex slice2DIndex = getSlice2DIndex(imageIndex);
-        final String variableName = slice2DIndex.getVariableName();
+        NetCDFImageIndexResolver.ResolvedSlice slice = imageIndexResolver.resolve(imageIndex);
+        String variableName = slice.getVariableName();
         final VariableAdapter wrapper = getCoverageDescriptor(new NameImpl(variableName));
 
         CoordinateReferenceSystem crs = georeferencing.getCoordinateReferenceSystem(variableName);
@@ -1043,7 +978,7 @@ public class NetCDFImageReader extends GeoSpatialImageReader implements FileSetM
 
         double[] noData = getNoData(wrapper);
         if (noData != null) {
-            Double[] noDataValues = Arrays.stream(noData).boxed().toArray(n -> new Double[n]);
+            Double[] noDataValues = Arrays.stream(noData).boxed().toArray(Double[]::new);
             metadata.setNoDataValues(noDataValues);
         }
 

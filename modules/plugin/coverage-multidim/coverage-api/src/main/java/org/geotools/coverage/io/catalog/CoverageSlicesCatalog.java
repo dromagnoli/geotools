@@ -203,15 +203,15 @@ public class CoverageSlicesCatalog {
     }
 
     /**
-     * A CoverageContext holds the typeName of a coverage, the underlying schema and a SliceProvider instance to extract
-     * CoverageSlices.
+     * A CoverageSlices context holds the typeName of a coverage, the underlying schema and a SliceProvider instance to
+     * extract CoverageSlices.
      */
-    public static final class CoverageContext {
+    public static final class CoverageSlicesContext {
         private final String typeName;
         private final SimpleFeatureType schema;
         private SliceProvider sliceProvider;
 
-        public CoverageContext(SimpleFeatureType schema) {
+        public CoverageSlicesContext(SimpleFeatureType schema) {
             this.schema = Objects.requireNonNull(schema, "schema");
             this.typeName = schema.getTypeName();
         }
@@ -233,7 +233,7 @@ public class CoverageSlicesCatalog {
         }
     }
 
-    private final Map<String, CoverageContext> contextsByTypeName = new LinkedHashMap<>();
+    private final Map<String, CoverageSlicesContext> contextsByTypeName = new LinkedHashMap<>();
 
     public CoverageSlicesCatalog() {}
 
@@ -242,12 +242,12 @@ public class CoverageSlicesCatalog {
     }
 
     public SimpleFeatureType getSchema(String requestedTypeName) throws IOException {
-        CoverageContext context = context(requestedTypeName);
+        CoverageSlicesContext context = context(requestedTypeName);
         return context != null ? context.getSchema() : null;
     }
 
     public void dispose() {
-        for (CoverageContext context : contextsByTypeName.values()) {
+        for (CoverageSlicesContext context : contextsByTypeName.values()) {
             Object sliceProvider = context.getSliceProvider();
             if (sliceProvider instanceof AutoCloseable) {
                 try {
@@ -264,7 +264,7 @@ public class CoverageSlicesCatalog {
         }
     }
 
-    private CoverageContext context(String typeName) {
+    private CoverageSlicesContext context(String typeName) {
         return contextsByTypeName.get(typeName);
     }
 
@@ -383,7 +383,7 @@ public class CoverageSlicesCatalog {
         }
     }
 
-    public void registerContext(CoverageContext context) {
+    public void registerContext(CoverageSlicesContext context) {
         contextsByTypeName.put(context.getTypeName(), context);
     }
 }

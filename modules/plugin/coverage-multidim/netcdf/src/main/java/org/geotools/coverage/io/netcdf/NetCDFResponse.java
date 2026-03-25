@@ -260,10 +260,10 @@ class NetCDFResponse extends CoverageResponse {
 
                 // handle default params
                 if (timeRange == null && timeFilterAttribute != null) {
-                    Query(query, timeFilterAttribute);
+                    defaultQuery(query, timeFilterAttribute);
                 }
                 if (elevation == null && elevationFilterAttribute != null) {
-                    Query(query, elevationFilterAttribute);
+                    defaultQuery(query, elevationFilterAttribute);
                 }
                 defaultParamsManagement(query, domainsSubset, dimensionDescriptors);
 
@@ -351,13 +351,7 @@ class NetCDFResponse extends CoverageResponse {
             final Range range = time;
             // schema with only one time attribute. Consider adding code for schema with begin,end
             // attributes
-            filters.add(FeatureUtilities.DEFAULT_FILTER_FACTORY.and(
-                    FeatureUtilities.DEFAULT_FILTER_FACTORY.lessOrEqual(
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property(timeFilterAttribute),
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(range.getMaxValue())),
-                    FeatureUtilities.DEFAULT_FILTER_FACTORY.greaterOrEqual(
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property(timeFilterAttribute),
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(range.getMinValue()))));
+            addFilter(filters, range, timeFilterAttribute);
         }
 
         // //
@@ -367,13 +361,7 @@ class NetCDFResponse extends CoverageResponse {
             final Range range = elevation;
             // schema with only one elevation attribute. Consider adding code for schema with
             // begin,end attributes
-            filters.add(FeatureUtilities.DEFAULT_FILTER_FACTORY.and(
-                    FeatureUtilities.DEFAULT_FILTER_FACTORY.lessOrEqual(
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property(elevationFilterAttribute),
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(range.getMaxValue())),
-                    FeatureUtilities.DEFAULT_FILTER_FACTORY.greaterOrEqual(
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property(elevationFilterAttribute),
-                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(range.getMinValue()))));
+            addFilter(filters, range, elevationFilterAttribute);
         }
 
         if (requestFilter != null) {
@@ -382,6 +370,24 @@ class NetCDFResponse extends CoverageResponse {
 
         Filter filter = FeatureUtilities.DEFAULT_FILTER_FACTORY.and(filters);
         query.setFilter(filter);
+    }
+
+    private void addFilter(List<Filter> filters, Range range, String attribute) {
+        Comparable minValue = range.getMinValue();
+        Comparable maxValue = range.getMaxValue();
+        if (minValue.equals(maxValue)) {
+            filters.add(FeatureUtilities.DEFAULT_FILTER_FACTORY.equals(
+                    FeatureUtilities.DEFAULT_FILTER_FACTORY.property(attribute),
+                    FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(maxValue)));
+        } else {
+            filters.add(FeatureUtilities.DEFAULT_FILTER_FACTORY.and(
+                    FeatureUtilities.DEFAULT_FILTER_FACTORY.lessOrEqual(
+                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property(attribute),
+                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(maxValue)),
+                    FeatureUtilities.DEFAULT_FILTER_FACTORY.greaterOrEqual(
+                            FeatureUtilities.DEFAULT_FILTER_FACTORY.property(attribute),
+                            FeatureUtilities.DEFAULT_FILTER_FACTORY.literal(minValue))));
+        }
     }
 
     private Object findDefaultValue(Query query, String attribute) {
@@ -405,7 +411,7 @@ class NetCDFResponse extends CoverageResponse {
         }
     }
 
-    private void Query(Query query, String filterAttribute) {
+    private void defaultQuery(Query query, String filterAttribute) {
         Object value = findDefaultValue(query, filterAttribute);
         if (value != null) {
             Filter filter = query.getFilter();
@@ -428,7 +434,7 @@ class NetCDFResponse extends CoverageResponse {
                 }
             }
             if (notPresent) {
-                Query(query, dim.getStartAttribute());
+                defaultQuery(query, dim.getStartAttribute());
             }
         }
     }
