@@ -22,49 +22,20 @@ import java.util.Collections;
 import java.util.List;
 import org.geotools.util.Utilities;
 
-/**
- * Resolves a global image index into the owning variable and its logical non-spatial dimension indexes.
- */
+/** Resolves a global image index into the owning variable and its logical non-spatial dimension indexes. */
 final class NetCDFImageIndexResolver {
 
     static final class ResolvedSlice {
-        private final VariableAdapter variableAdapter;
         private final String variableName;
-        private final int globalImageIndex;
-        private final int localImageIndex;
         private final int[] indexes;
 
-        ResolvedSlice(
-                VariableAdapter variableAdapter,
-                String variableName,
-                int globalImageIndex,
-                int localImageIndex,
-                int[] indexes) {
-            this.variableAdapter = variableAdapter;
+        ResolvedSlice(String variableName, int[] indexes) {
             this.variableName = variableName;
-            this.globalImageIndex = globalImageIndex;
-            this.localImageIndex = localImageIndex;
             this.indexes = indexes;
-        }
-
-        VariableAdapter getVariableAdapter() {
-            return variableAdapter;
         }
 
         String getVariableName() {
             return variableName;
-        }
-
-        int getGlobalImageIndex() {
-            return globalImageIndex;
-        }
-
-        int getLocalImageIndex() {
-            return localImageIndex;
-        }
-
-        int[] getIndexes() {
-            return indexes;
         }
 
         int getNIndex(int n) {
@@ -87,10 +58,6 @@ final class NetCDFImageIndexResolver {
             this.variableName = variableAdapter.getName();
             this.startIndexInclusive = startIndexInclusive;
             this.endIndexExclusive = startIndexInclusive + variableAdapter.getNumberOfSlices();
-        }
-
-        boolean contains(int imageIndex) {
-            return imageIndex >= startIndexInclusive && imageIndex < endIndexExclusive;
         }
 
         int toLocalIndex(int imageIndex) {
@@ -131,51 +98,11 @@ final class NetCDFImageIndexResolver {
         this.totalImageCount = offset;
     }
 
-    int getTotalImageCount() {
-        return totalImageCount;
-    }
-
-    boolean isEmpty() {
-        return entries.isEmpty();
-    }
-
     ResolvedSlice resolve(int imageIndex) {
         Entry entry = findEntry(imageIndex);
         int localImageIndex = entry.toLocalIndex(imageIndex);
         int[] indexes = entry.variableAdapter.splitIndex(localImageIndex);
-        return new ResolvedSlice(entry.variableAdapter, entry.variableName, imageIndex, localImageIndex, indexes);
-    }
-
-    VariableAdapter getVariableAdapter(int imageIndex) {
-        return findEntry(imageIndex).variableAdapter;
-    }
-
-    String getVariableName(int imageIndex) {
-        return findEntry(imageIndex).variableName;
-    }
-
-    int[] getIndexes(int imageIndex) {
-        Entry entry = findEntry(imageIndex);
-        return entry.variableAdapter.splitIndex(entry.toLocalIndex(imageIndex));
-    }
-
-    int getLocalImageIndex(int globalImageIndex) {
-        Entry entry = findEntry(globalImageIndex);
-        return entry.toLocalIndex(globalImageIndex);
-    }
-
-    int toGlobalImageIndex(VariableAdapter adapter, int[] indexes) {
-        Utilities.ensureNonNull("adapter", adapter);
-        Utilities.ensureNonNull("indexes", indexes);
-
-        for (Entry entry : entries) {
-            if (entry.variableAdapter == adapter) {
-                return entry.startIndexInclusive + adapter.getLocalImageIndex(indexes);
-            }
-        }
-
-        throw new IllegalArgumentException(
-                "The provided adapter is not managed by this resolver: " + adapter.getName());
+        return new ResolvedSlice(entry.variableName, indexes);
     }
 
     private Entry findEntry(int imageIndex) {
