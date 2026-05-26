@@ -223,6 +223,34 @@ class GeoParquetDataStoreFactoryDelegate extends AbstractDuckDBDataStoreFactory 
             .build();
 
     /**
+     * Parameter for specifying the DuckDB S3 endpoint for S3-compatible services.
+     *
+     * <p>This is useful for MinIO, Ceph, local object stores, and other services that expose S3-compatible APIs at a
+     * custom endpoint.
+     */
+    public static final DataAccessFactory.Param ENDPOINT = new ParamBuilder("endpoint")
+            .type(String.class)
+            .title("S3 Endpoint")
+            .description("DuckDB S3 endpoint for S3-compatible services")
+            .required(false)
+            .userLevel()
+            .build();
+
+    /**
+     * Parameter for specifying the DuckDB S3 URL style.
+     *
+     * <p>Use {@code path} for path-style access when connecting to S3-compatible services that do not support
+     * virtual-hosted style addressing.
+     */
+    public static final DataAccessFactory.Param URL_STYLE = new ParamBuilder("url_style")
+            .type(String.class)
+            .title("S3 URL Style")
+            .description("DuckDB S3 URL style, such as 'path' for path-style access")
+            .required(false)
+            .userLevel()
+            .build();
+
+    /**
      * Parameter for providing a specific primaryKey identifier, in case the dataset is not using the default GeoParquet
      * identifier "id"
      */
@@ -290,6 +318,8 @@ class GeoParquetDataStoreFactoryDelegate extends AbstractDuckDBDataStoreFactory 
         parameters.put(USE_AWS_CREDENTIAL_CHAIN.key, USE_AWS_CREDENTIAL_CHAIN);
         parameters.put(AWS_REGION.key, AWS_REGION);
         parameters.put(AWS_PROFILE.key, AWS_PROFILE);
+        parameters.put(ENDPOINT.key, ENDPOINT);
+        parameters.put(URL_STYLE.key, URL_STYLE);
         parameters.put(PRIMARY_KEY_ID.key, PRIMARY_KEY_ID);
     }
 
