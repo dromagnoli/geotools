@@ -29,9 +29,11 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import org.geotools.api.data.DataAccessFactory;
 import org.geotools.api.data.DataStore;
 import org.geotools.api.data.DataStoreFactorySpi;
 import org.geotools.api.data.DataStoreFinder;
+import org.geotools.api.data.Parameter;
 import org.junit.Before;
 import org.junit.ClassRule;
 import org.junit.Test;
@@ -132,5 +134,27 @@ public class GeoParquetDataStoreFactoryTest {
         }
         assertNotNull("Should find the GeoParquet factory", found);
         assertEquals(GeoParquetDataStoreFactory.class, found.getClass());
+    }
+
+    @Test
+    public void testS3CredentialChainParametersAreExposedForUi() {
+        DataAccessFactory.Param[] params = factory.getParametersInfo();
+
+        DataAccessFactory.Param endpoint = null;
+        DataAccessFactory.Param urlStyle = null;
+        for (DataAccessFactory.Param param : params) {
+            if (GeoParquetDataStoreFactory.ENDPOINT.key.equals(param.key)) {
+                endpoint = param;
+            } else if (GeoParquetDataStoreFactory.URL_STYLE.key.equals(param.key)) {
+                urlStyle = param;
+            }
+        }
+
+        assertNotNull(endpoint);
+        assertNotNull(urlStyle);
+        assertFalse(endpoint.required);
+        assertFalse(urlStyle.required);
+        assertEquals("user", endpoint.metadata.get(Parameter.LEVEL));
+        assertEquals("user", urlStyle.metadata.get(Parameter.LEVEL));
     }
 }

@@ -64,6 +64,8 @@ public class GeoParquetDataStoreFactory extends ForwardingDataStoreFactory<GeoPa
     public static final Param USE_AWS_CREDENTIAL_CHAIN = GeoParquetDataStoreFactoryDelegate.USE_AWS_CREDENTIAL_CHAIN;
     public static final Param AWS_REGION = GeoParquetDataStoreFactoryDelegate.AWS_REGION;
     public static final Param AWS_PROFILE = GeoParquetDataStoreFactoryDelegate.AWS_PROFILE;
+    public static final Param ENDPOINT = GeoParquetDataStoreFactoryDelegate.ENDPOINT;
+    public static final Param URL_STYLE = GeoParquetDataStoreFactoryDelegate.URL_STYLE;
 
     public GeoParquetDataStoreFactory() {
         super(new GeoParquetDataStoreFactoryDelegate());
