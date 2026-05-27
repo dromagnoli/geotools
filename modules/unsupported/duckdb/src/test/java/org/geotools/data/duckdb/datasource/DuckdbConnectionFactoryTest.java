@@ -19,6 +19,7 @@ package org.geotools.data.duckdb.datasource;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
 
 import java.io.IOException;
 import java.lang.reflect.Method;
@@ -104,6 +105,44 @@ public class DuckdbConnectionFactoryTest {
         }
 
         assertEquals(1, driver.getConnectCount());
+    }
+
+    @Test
+    public void testUnavailableGeometryAlwaysXySettingIsSkipped() throws Exception {
+        Path database = createDatabasePath();
+        DuckdbConnectionFactory factory = new DuckdbConnectionFactory(
+                new DuckDBDriver(),
+                "jdbc:duckdb:" + database.toAbsolutePath(),
+                new Properties(),
+                List.of("SET geometry_always_xy=true"));
+
+        try (Connection connection = factory.createConnection()) {
+            assertNotNull(connection);
+        } finally {
+            factory.close();
+        }
+    }
+
+    @Test
+    public void testGeometryAlwaysXySetStatementMatchesSemicolonAndCase() {
+        assertTrue(DuckdbConnectionFactory.isGeometryAlwaysXySetStatement("SET geometry_always_xy=true;"));
+        assertTrue(DuckdbConnectionFactory.isGeometryAlwaysXySetStatement("set geometry_always_xy = false"));
+    }
+
+    @Test
+    public void testUnsupportedGeometryAlwaysXyAcceptsSemicolonAndMessageCase() {
+        SQLException exception =
+                new SQLException("Catalog Error: Unrecognized configuration parameter \"geometry_always_xy\"");
+
+        assertTrue(DuckdbConnectionFactory.isUnsupportedGeometryAlwaysXy("SET geometry_always_xy=true;", exception));
+    }
+
+    @Test
+    public void testUnsupportedGeometryAlwaysXyRejectsOtherSettings() {
+        SQLException exception =
+                new SQLException("Catalog Error: Unrecognized configuration parameter \"some_other_setting\"");
+
+        assertFalse(DuckdbConnectionFactory.isUnsupportedGeometryAlwaysXy("SET some_other_setting=true", exception));
     }
 
     private Path createDatabasePath() throws IOException {
