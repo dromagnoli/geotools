@@ -408,7 +408,9 @@ public class GeoParquetDialect extends DuckDBDialect {
             if (!rs.next()) throw new RuntimeException("Could not compute bounds from bbox column, no result found");
             Geometry fullBounds = parseWKB(rs.getBlob(1));
             GeometryDescriptor geometryDescriptor = featureType.getGeometryDescriptor();
-            CoordinateReferenceSystem crs = geometryDescriptor.getCoordinateReferenceSystem();
+            CoordinateReferenceSystem crs = geometryDescriptor != null
+                    ? geometryDescriptor.getCoordinateReferenceSystem()
+                    : getGeoparquetMetadata(featureType.getTypeName(), cx).getCrs();
             return new ReferencedEnvelope(fullBounds.getEnvelopeInternal(), crs);
         }
     }
@@ -582,11 +584,22 @@ public class GeoParquetDialect extends DuckDBDialect {
         SimpleFeatureTypeBuilder builder = new SimpleFeatureTypeBuilder();
         builder.init(schema);
 
-        schema.getAttributeDescriptors().stream()
-                .filter(GeometryDescriptor.class::isInstance)
-                .map(GeometryDescriptor.class::cast)
-                .map(d -> buildGeometryDescriptorOverride(schema.getTypeName(), d))
-                .forEach(overriding -> builder.set(overriding.getLocalName(), overriding));
+        GeoparquetDatasetMetadata metadata;
+        try {
+            metadata = getGeoparquetMetadata(schema.getTypeName());
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        metadata.getColumnNames().forEach(geometryAttribute -> {
+            AttributeDescriptor descriptor = schema.getDescriptor(geometryAttribute);
+            AttributeDescriptor overriding =
+                    buildGeometryDescriptorOverride(schema.getTypeName(), geometryAttribute, descriptor);
+            if (descriptor == null) {
+                builder.add(overriding);
+            } else {
+                builder.set(geometryAttribute, overriding);
+            }
+        });
         return builder.buildFeatureType();
     }
 
@@ -610,17 +623,33 @@ public class GeoParquetDialect extends DuckDBDialect {
      * @param orig The original geometry descriptor with generic type
      * @return A new geometry descriptor with the specific geometry type, or the original if unchanged
      */
-    private GeometryDescriptor buildGeometryDescriptorOverride(String typeName, GeometryDescriptor orig) {
-        String geometryAttirbute = orig.getLocalName();
+    private AttributeDescriptor buildGeometryDescriptorOverride(
+            String typeName, String geometryAttirbute, AttributeDescriptor orig) {
         Class<? extends Geometry> narrowedGeomType = getNarrowedGeometryType(typeName, geometryAttirbute);
-        if (narrowedGeomType.equals(orig.getType().getBinding())) {
-            return orig;
+        CoordinateReferenceSystem crs;
+        try {
+            crs = getGeoparquetMetadata(typeName).getCrs(geometryAttirbute);
+        } catch (IOException e) {
+            throw new UncheckedIOException(e);
+        }
+        if (orig instanceof GeometryDescriptor geometryOrig
+                && narrowedGeomType.equals(geometryOrig.getType().getBinding())) {
+            return geometryOrig;
         }
 
         AttributeTypeBuilder builder = new AttributeTypeBuilder();
-        builder.init(orig);
+        if (orig != null) {
+            builder.init(orig);
+        } else {
+            builder.setName(geometryAttirbute);
+        }
         builder.setBinding(narrowedGeomType);
-        return (GeometryDescriptor) builder.buildDescriptor(geometryAttirbute);
+        builder.setCRS(crs);
+        return builder.buildDescriptor(geometryAttirbute);
+    }
+
+    private GeometryDescriptor buildGeometryDescriptorOverride(String typeName, GeometryDescriptor orig) {
+        return (GeometryDescriptor) buildGeometryDescriptorOverride(typeName, orig.getLocalName(), orig);
     }
 
     /**

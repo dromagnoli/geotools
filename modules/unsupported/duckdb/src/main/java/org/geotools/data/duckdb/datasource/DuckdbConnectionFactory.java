@@ -153,12 +153,31 @@ class DuckdbConnectionFactory extends DriverConnectionFactory {
                 if (!allowInstall && isInstallStatement(sql)) {
                     continue;
                 }
-                stmt.execute(sql);
+                executeInitSql(stmt, sql);
+            }
+        }
+    }
+
+    private void executeInitSql(Statement stmt, String sql) throws SQLException {
+        try {
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            if (!isUnsupportedGeometryAlwaysXy(sql, e)) {
+                throw e;
             }
         }
     }
 
     private boolean isInstallStatement(String sql) {
         return sql != null && sql.trim().regionMatches(true, 0, "install", 0, "install".length());
+    }
+
+    static boolean isUnsupportedGeometryAlwaysXy(String sql, SQLException e) {
+        String trimmed = sql == null ? "" : sql.trim();
+        String message = e.getMessage();
+        return trimmed.toLowerCase(java.util.Locale.ROOT).matches("set\\s+geometry_always_xy\\s*=\\s*(true|false)")
+                && message != null
+                && message.contains("geometry_always_xy")
+                && message.contains("unrecognized configuration parameter");
     }
 }

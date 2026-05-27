@@ -131,7 +131,7 @@ public class DuckDBDialect extends BasicSQLDialect {
     //    }
 
     public List<String> getDatabaseInitSql() {
-        return List.of("install spatial", "load spatial");
+        return List.of("install spatial", "load spatial", "SET geometry_always_xy = true");
     }
 
     @Override
