@@ -408,7 +408,6 @@ class GeoParquetViewManager {
         }
 
         return """
-                SET unsafe_disable_etag_checks = true;
                 CREATE OR REPLACE SECRET geoparquet_s3_secret (
                     TYPE s3,
                     PROVIDER credential_chain%s%s%s%s%s

@@ -20,6 +20,7 @@ import static java.util.Objects.requireNonNull;
 
 import java.sql.Connection;
 import java.sql.Driver;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.List;
@@ -153,12 +154,46 @@ class DuckdbConnectionFactory extends DriverConnectionFactory {
                 if (!allowInstall && isInstallStatement(sql)) {
                     continue;
                 }
-                stmt.execute(sql);
+                executeInitSql(stmt, sql);
+            }
+        }
+    }
+
+    private void executeInitSql(Statement stmt, String sql) throws SQLException {
+        try {
+            if (isGeometryAlwaysXySetStatement(sql) && !isDuckDbSettingAvailable(stmt, "geometry_always_xy")) {
+                return;
+            }
+            stmt.execute(sql);
+        } catch (SQLException e) {
+            if (!isUnsupportedGeometryAlwaysXy(sql, e)) {
+                throw e;
             }
         }
     }
 
     private boolean isInstallStatement(String sql) {
         return sql != null && sql.trim().regionMatches(true, 0, "install", 0, "install".length());
+    }
+
+    private boolean isDuckDbSettingAvailable(Statement stmt, String settingName) throws SQLException {
+        try (ResultSet rs = stmt.executeQuery(
+                "SELECT 1 FROM duckdb_settings() WHERE lower(name) = '" + settingName + "' LIMIT 1")) {
+            return rs.next();
+        }
+    }
+
+    static boolean isGeometryAlwaysXySetStatement(String sql) {
+        String trimmed = sql == null ? "" : sql.trim();
+        return trimmed.toLowerCase(java.util.Locale.ROOT)
+                .matches("set\\s+geometry_always_xy\\s*=\\s*(true|false)\\s*;?");
+    }
+
+    static boolean isUnsupportedGeometryAlwaysXy(String sql, SQLException e) {
+        String message = e.getMessage();
+        String normalizedMessage = message == null ? "" : message.toLowerCase(java.util.Locale.ROOT);
+        return isGeometryAlwaysXySetStatement(sql)
+                && normalizedMessage.contains("geometry_always_xy")
+                && normalizedMessage.contains("unrecognized configuration parameter");
     }
 }
