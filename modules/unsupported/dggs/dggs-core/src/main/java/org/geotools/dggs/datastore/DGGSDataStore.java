@@ -17,6 +17,7 @@
 package org.geotools.dggs.datastore;
 
 import java.io.IOException;
+import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.List;
 import java.util.NoSuchElementException;
@@ -67,7 +68,9 @@ public class DGGSDataStore<I> implements DGGSStore<I> {
         String.class, Long.class, Integer.class, Short.class, java.math.BigInteger.class
     };
 
-    private static final Class<?>[] RESOLUTION_BINDINGS = {Byte.class, Short.class, Integer.class};
+    private static final Class<?>[] RESOLUTION_BINDINGS = {
+        Byte.class, Short.class, Integer.class, Long.class, BigInteger.class
+    };
 
     static final Logger LOGGER = Logging.getLogger(DGGSDataStore.class);
 

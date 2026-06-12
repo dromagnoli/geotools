@@ -342,7 +342,6 @@ class GeoParquetViewManager {
     private void createAwsCredentialChainSecret(String region, String profile, String endpoint, String urlStyle)
             throws IOException {
         String createSecretSql = buildCreateSecretSql(region, profile, endpoint, urlStyle);
-
         try (Connection c = getConnection();
                 Statement st = c.createStatement()) {
             st.execute(createSecretSql);
@@ -350,6 +349,10 @@ class GeoParquetViewManager {
         } catch (SQLException e) {
             throw new IOException("Failed to create AWS credential chain secret: " + e.getMessage(), e);
         }
+    }
+
+    static String buildCreateSecretSql(String region, String profile) {
+        return buildCreateSecretSql(region, profile, null, null);
     }
 
     /**
@@ -405,6 +408,7 @@ class GeoParquetViewManager {
         }
 
         return """
+                SET unsafe_disable_etag_checks = true;
                 CREATE OR REPLACE SECRET geoparquet_s3_secret (
                     TYPE s3,
                     PROVIDER credential_chain%s%s%s%s%s
